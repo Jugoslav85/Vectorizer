@@ -245,11 +245,22 @@ $('btn-run').addEventListener('click', async () => {
     currentSvgText = svgText;
     currentSvgUrl  = data.download;
 
-    // Render SVG to canvas at original image resolution for display
+    // Try canvas rendering first, fall back to direct SVG display
     $('status').textContent = 'Rendering…';
-    const canvas = await svgToCanvas(svgText, origW, origH);
-    $('panel-svg').innerHTML = '';
-    $('panel-svg').appendChild(canvas);
+    try {
+      const canvas = await svgToCanvas(svgText, origW, origH);
+      $('panel-svg').innerHTML = '';
+      $('panel-svg').appendChild(canvas);
+    } catch(renderErr) {
+      // Fallback: display SVG directly
+      $('panel-svg').innerHTML = '';
+      const parser = new DOMParser();
+      const doc    = parser.parseFromString(svgText, 'image/svg+xml');
+      const svgEl  = document.importNode(doc.querySelector('svg'), true);
+      svgEl.style.maxWidth = '100%';
+      svgEl.style.maxHeight = '100%';
+      $('panel-svg').appendChild(svgEl);
+    }
 
     const paths = svgText.match(/<path/g)?.length ?? 0;
     $('svg-meta').textContent = `${paths} paths`;
@@ -257,7 +268,7 @@ $('btn-run').addEventListener('click', async () => {
     $('export-section').style.display = 'flex';
   } catch(e) {
     $('status').textContent = 'Error: ' + e.message;
-    $('panel-svg').innerHTML = '<div class="ph">Error — check terminal</div>';
+    $('panel-svg').innerHTML = `<div class="ph">Error: ${e.message}</div>`;
   } finally {
     $('btn-run').disabled = false;
   }
