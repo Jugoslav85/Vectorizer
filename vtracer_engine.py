@@ -8,7 +8,7 @@ import io
 import vtracer
 from PIL import Image
 
-MAX_INPUT_PX = 2500  # cap longest side before processing
+MAX_INPUT_PX = 1200  # cap longest side before processing
 
 
 def _cap_size(img: Image.Image) -> Image.Image:
