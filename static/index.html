@@ -297,22 +297,17 @@ $('btn-run').addEventListener('click', async () => {
     currentSvgText = svgText;
     currentSvgUrl  = data.download;
 
-    // Try canvas rendering first, fall back to direct SVG display
-    $('status').textContent = 'Rendering…';
-    try {
-      const canvas = await svgToCanvas(svgText, origW, origH);
-      $('panel-svg').innerHTML = '';
-      $('panel-svg').appendChild(canvas);
-    } catch(renderErr) {
-      // Fallback: display SVG directly
-      $('panel-svg').innerHTML = '';
-      const parser = new DOMParser();
-      const doc    = parser.parseFromString(svgText, 'image/svg+xml');
-      const svgEl  = document.importNode(doc.querySelector('svg'), true);
-      svgEl.style.maxWidth = '100%';
-      svgEl.style.maxHeight = '100%';
-      $('panel-svg').appendChild(svgEl);
-    }
+    // Display SVG directly — browser renders vector natively, no canvas needed
+    $('panel-svg').innerHTML = '';
+    const parser = new DOMParser();
+    const doc    = parser.parseFromString(svgText, 'image/svg+xml');
+    const svgEl  = document.importNode(doc.querySelector('svg'), true);
+    svgEl.style.maxWidth  = '100%';
+    svgEl.style.maxHeight = '100%';
+    svgEl.style.width     = '100%';
+    svgEl.style.height    = '100%';
+    svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    $('panel-svg').appendChild(svgEl);
 
     const paths = svgText.match(/<path/g)?.length ?? 0;
     $('svg-meta').textContent = `${paths} paths`;
