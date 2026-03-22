@@ -57,8 +57,21 @@ main { display: flex; flex-direction: column; overflow: hidden; }
 .vp-inner svg { display: block; }
 .ph { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #333; font-size: 12px; pointer-events: none; }
 
-.spin { width: 28px; height: 28px; border: 2px solid #333; border-top-color: #6c6af7; border-radius: 50%; animation: spin .7s linear infinite; position: absolute; top: 50%; left: 50%; margin: -14px 0 0 -14px; }
-@keyframes spin { to { transform: rotate(360deg); } }
+/* Loading modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+.modal-overlay.visible { display: flex; }
+.modal-box { background: #111116; border: 1px solid #2a2a35; border-radius: 16px; padding: 36px 40px; text-align: center; min-width: 280px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+.modal-spinner { width: 48px; height: 48px; border: 3px solid #222; border-top-color: #6c6af7; border-radius: 50%; animation: spin .8s linear infinite; }
+.modal-title { font-size: 16px; font-weight: 600; color: #fff; }
+.modal-stage { font-size: 12px; color: #6c6af7; min-height: 18px; transition: opacity .3s; }
+.modal-stages { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.stage-item { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #444; padding: 3px 0; transition: color .3s; }
+.stage-item.done { color: #34d399; }
+.stage-item.active { color: #e0e0e8; }
+.stage-item .dot { width: 6px; height: 6px; border-radius: 50%; background: #333; flex-shrink: 0; transition: background .3s; }
+.stage-item.done .dot { background: #34d399; }
+.stage-item.active .dot { background: #6c6af7; animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 </style>
 </head>
 <body>
@@ -146,6 +159,20 @@ main { display: flex; flex-direction: column; overflow: hidden; }
     </div>
   </div>
 </main>
+
+<!-- Loading modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-box">
+    <div class="modal-spinner"></div>
+    <div class="modal-title">Processing your image</div>
+    <div class="modal-stages" id="modal-stages">
+      <div class="stage-item" id="stage-upload"><span class="dot"></span>Uploading image</div>
+      <div class="stage-item" id="stage-analyze"><span class="dot"></span>Analyzing image type</div>
+      <div class="stage-item" id="stage-trace"><span class="dot"></span>Vectorizing</div>
+      <div class="stage-item" id="stage-render"><span class="dot"></span>Rendering result</div>
+    </div>
+  </div>
+</div>
 
 <script>
 const $ = id => document.getElementById(id);
@@ -283,13 +310,29 @@ function load(f) {
 function newImg() { fi.click(); }
 
 // ── Vectorize ─────────────────────────────────────────────────────────────
+// ── Loading modal ─────────────────────────────────────────────────────────
+const STAGES = ['stage-upload','stage-analyze','stage-trace','stage-render'];
+function setStage(id) {
+  STAGES.forEach(s => {
+    const el = $(s);
+    const si = STAGES.indexOf(s), ci = STAGES.indexOf(id);
+    el.className = 'stage-item' + (si < ci ? ' done' : si === ci ? ' active' : '');
+  });
+}
+function showModal() { $('modal').classList.add('visible'); }
+function hideModal() { $('modal').classList.remove('visible'); }
+
+// ── Vectorize ─────────────────────────────────────────────────────────────
 $('btn-run').addEventListener('click', async () => {
   if (!currentFile) return;
   $('btn-run').disabled = true;
   $('export-section').style.display = 'none';
-  $('inner-svg').innerHTML = '<div class="spin"></div>';
+  $('inner-svg').innerHTML = '';
   $('ph-svg').style.display = 'none';
-  $('status').textContent = 'Tracing…';
+  $('status').textContent = 'Processing…';
+
+  showModal();
+  setStage('stage-upload');
 
   const fd = new FormData();
   fd.append('file',             currentFile);
@@ -306,7 +349,13 @@ $('btn-run').addEventListener('click', async () => {
   fd.append('path_precision',   $('path-precision').value);
 
   try {
+    // Short delay so user sees upload stage
+    await new Promise(r => setTimeout(r, 300));
+    setStage('stage-analyze');
+
     const res  = await fetch('/api/vectorize', { method:'POST', body:fd });
+
+    setStage('stage-trace');
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
 
@@ -315,21 +364,20 @@ $('btn-run').addEventListener('click', async () => {
     currentSvgText = svgText;
     currentSvgUrl  = data.download;
 
+    setStage('stage-render');
+    await new Promise(r => setTimeout(r, 200));
+
     // Parse SVG and set explicit dimensions + viewBox for correct scaling
     const parser = new DOMParser();
     const doc    = parser.parseFromString(svgText, 'image/svg+xml');
     const svgEl  = document.importNode(doc.querySelector('svg'), true);
 
-    // Get vtracer's natural dimensions
     const svgW = parseFloat(svgEl.getAttribute('width')  || imgW);
     const svgH = parseFloat(svgEl.getAttribute('height') || imgH);
 
-    // Set viewBox if missing (vtracer doesn't include one)
     if (!svgEl.getAttribute('viewBox')) {
       svgEl.setAttribute('viewBox', `0 0 ${svgW} ${svgH}`);
     }
-
-    // Set display size to match original image exactly
     svgEl.setAttribute('width',  imgW);
     svgEl.setAttribute('height', imgH);
     svgEl.style.display = 'block';
@@ -339,11 +387,18 @@ $('btn-run').addEventListener('click', async () => {
     $('inner-svg').innerHTML = '';
     $('inner-svg').appendChild(svgEl);
 
-    const paths = svgText.match(/<path/g)?.length ?? 0;
-    $('svg-meta').textContent = `${paths} paths`;
-    $('status').textContent = `Done in ${data.elapsed}s`;
+    // Mark all done
+    STAGES.forEach(s => $(s).className = 'stage-item done');
+    await new Promise(r => setTimeout(r, 400));
+    hideModal();
+
+    const isGrad = svgText.includes('linearGradient') || svgText.includes('radialGradient');
+    const paths  = svgText.match(/<path/g)?.length ?? 0;
+    $('svg-meta').textContent = isGrad ? 'SVG gradient' : `${paths} paths`;
+    $('status').textContent   = `Done in ${data.elapsed}s`;
     $('export-section').style.display = 'flex';
   } catch(e) {
+    hideModal();
     $('status').textContent = 'Error: ' + e.message;
     $('inner-svg').innerHTML = '';
     $('ph-svg').style.display = '';
