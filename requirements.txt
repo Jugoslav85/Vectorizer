@@ -1,5 +1,5 @@
 flask
 pillow
-vtracer==0.6.4
+vtracer==0.6.12
 gunicorn
 numpy
