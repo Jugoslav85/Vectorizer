@@ -2,4 +2,4 @@ flask
 pillow
 vtracer==0.6.12
 gunicorn
-numpy
+cairosvg
