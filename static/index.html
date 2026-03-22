@@ -6,40 +6,59 @@
 <title>Vectorizer</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: system-ui, sans-serif; background: #0d0d0f; color: #e0e0e8; height: 100vh; display: grid; grid-template-columns: 280px 1fr; }
+body { font-family: system-ui, sans-serif; background: #0d0d0f; color: #e0e0e8; height: 100vh; display: grid; grid-template-columns: 260px 1fr; overflow: hidden; }
 
-aside { background: #111116; border-right: 1px solid #222; padding: 20px 16px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
-h1 { font-size: 16px; font-weight: 600; color: #fff; }
-
-.field { display: flex; flex-direction: column; gap: 5px; }
-.field label { font-size: 11px; color: #888; display: flex; justify-content: space-between; }
-.field label span { color: #ccc; font-family: monospace; }
-select { background: #1a1a20; border: 1px solid #333; color: #e0e0e8; padding: 6px 8px; border-radius: 6px; font-size: 12px; width: 100%; }
-input[type=range] { width: 100%; accent-color: #6c6af7; }
-.sep { border-top: 1px solid #222; }
-.btn { width: 100%; padding: 10px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+/* Sidebar */
+aside { background: #111116; border-right: 1px solid #222; padding: 16px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+h1 { font-size: 15px; font-weight: 600; color: #fff; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: 11px; color: #888; display: flex; justify-content: space-between; align-items: center; }
+.field label span { color: #ccc; font-family: monospace; font-size: 11px; }
+.field label small { color: #555; font-size: 10px; }
+select { background: #1a1a20; border: 1px solid #333; color: #e0e0e8; padding: 5px 8px; border-radius: 6px; font-size: 12px; width: 100%; }
+input[type=range] { width: 100%; accent-color: #6c6af7; height: 3px; }
+.sep { border-top: 1px solid #1a1a1a; }
+.btn { width: 100%; padding: 9px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
 .btn-main { background: #6c6af7; color: #fff; }
 .btn-main:hover { background: #5553d4; }
 .btn-main:disabled { opacity: .4; cursor: not-allowed; }
-.btn-sec { background: transparent; color: #888; border: 1px solid #333; font-size: 12px; }
-.btn-sec:hover { color: #ccc; }
-.dropzone { border: 1.5px dashed #333; border-radius: 10px; padding: 20px; text-align: center; cursor: pointer; position: relative; transition: border-color .15s; }
+.btn-sec { background: transparent; color: #888; border: 1px solid #333; font-size: 11px; padding: 7px; }
+.btn-sec:hover { color: #ccc; border-color: #555; }
+.dropzone { border: 1.5px dashed #333; border-radius: 10px; padding: 16px; text-align: center; cursor: pointer; position: relative; transition: border-color .15s; }
 .dropzone:hover, .dropzone.over { border-color: #6c6af7; background: rgba(108,106,247,.06); }
 .dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-.dropzone p { font-size: 12px; color: #666; margin-top: 6px; }
-main { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #222; }
-.panel { background: #0d0d0f; display: flex; flex-direction: column; }
-.panel-hdr { padding: 8px 14px; background: #111116; border-bottom: 1px solid #222; font-size: 11px; color: #555; display: flex; justify-content: space-between; }
-.panel-body { flex: 1; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center;
+.dropzone p { font-size: 11px; color: #555; margin-top: 4px; }
+.export-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.status { font-size: 11px; color: #555; min-height: 16px; }
+.presets-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.sec-label { font-size: 10px; color: #444; letter-spacing: .5px; text-transform: uppercase; }
+
+/* Main area */
+main { display: flex; flex-direction: column; overflow: hidden; }
+
+/* Zoom toolbar */
+.toolbar { background: #111116; border-bottom: 1px solid #222; padding: 6px 14px; display: flex; align-items: center; gap: 10px; font-size: 11px; color: #555; flex-shrink: 0; }
+.toolbar button { background: #1a1a20; border: 1px solid #333; color: #aaa; padding: 3px 10px; border-radius: 5px; cursor: pointer; font-size: 11px; }
+.toolbar button:hover { color: #fff; border-color: #555; }
+#zoom-label { font-family: monospace; color: #6c6af7; min-width: 40px; }
+
+/* Panels */
+.panels { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #222; overflow: hidden; }
+.panel { background: #0d0d0f; display: flex; flex-direction: column; overflow: hidden; }
+.panel-hdr { padding: 6px 14px; background: #111116; border-bottom: 1px solid #1a1a1a; font-size: 10px; color: #444; display: flex; justify-content: space-between; flex-shrink: 0; text-transform: uppercase; letter-spacing: .5px; }
+
+/* Viewport - where pan/zoom happens */
+.vp { flex: 1; overflow: hidden; position: relative; cursor: grab;
   background-image: linear-gradient(45deg,#161620 25%,transparent 25%),linear-gradient(-45deg,#161620 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#161620 75%),linear-gradient(-45deg,transparent 75%,#161620 75%);
   background-size: 20px 20px; background-position: 0 0,0 10px,10px -10px,-10px 0; background-color: #1a1a24; }
-.panel-body img { max-width: 100%; max-height: 100%; object-fit: contain; }
-.panel-body canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
-.ph { color: #444; font-size: 12px; }
-.spin { width: 30px; height: 30px; border: 2px solid #333; border-top-color: #6c6af7; border-radius: 50%; animation: spin .7s linear infinite; }
+.vp:active { cursor: grabbing; }
+.vp-inner { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+.vp-inner img { display: block; }
+.vp-inner svg { display: block; }
+.ph { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #333; font-size: 12px; pointer-events: none; }
+
+.spin { width: 28px; height: 28px; border: 2px solid #333; border-top-color: #6c6af7; border-radius: 50%; animation: spin .7s linear infinite; position: absolute; top: 50%; left: 50%; margin: -14px 0 0 -14px; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.status { font-size: 11px; color: #555; }
-.export-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 </style>
 </head>
 <body>
@@ -54,69 +73,36 @@ main { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #222
   </div>
 
   <div class="sep"></div>
+  <div class="sec-label">Mode</div>
 
   <div class="field">
     <label>Color mode</label>
-    <select id="colormode">
-      <option value="color">Color</option>
-      <option value="binary">Black &amp; White</option>
-    </select>
+    <select id="colormode"><option value="color">Color</option><option value="binary">Black &amp; White</option></select>
   </div>
   <div class="field">
     <label>Path mode</label>
-    <select id="mode">
-      <option value="spline">Spline (smooth)</option>
-      <option value="polygon">Polygon</option>
-    </select>
+    <select id="mode"><option value="spline">Spline (smooth)</option><option value="polygon">Polygon</option></select>
   </div>
   <div class="field">
     <label>Hierarchical</label>
-    <select id="hierarchical">
-      <option value="stacked">Stacked</option>
-      <option value="cutout">Cutout</option>
-    </select>
+    <select id="hierarchical"><option value="stacked">Stacked</option><option value="cutout">Cutout</option></select>
   </div>
 
   <div class="sep"></div>
+  <div class="sec-label">Parameters</div>
 
-  <div class="field">
-    <label>Color precision <span id="v-cp">8</span></label>
-    <input type="range" id="color-precision" min="1" max="8" value="8"/>
-  </div>
-  <div class="field">
-    <label>Layer difference <span id="v-ld">2</span></label>
-    <input type="range" id="layer-difference" min="1" max="64" value="2"/>
-  </div>
-  <div class="field">
-    <label>Filter speckle <span id="v-fs">4</span> <small>noise removal</small></label>
-    <input type="range" id="filter-speckle" min="0" max="32" value="4"/>
-  </div>
-  <div class="field">
-    <label>Corner threshold <span id="v-ct">60</span>° <small>sharpness</small></label>
-    <input type="range" id="corner-threshold" min="1" max="180" value="60"/>
-  </div>
-  <div class="field">
-    <label>Length threshold <span id="v-lt">4.0</span> <small>path detail</small></label>
-    <input type="range" id="length-threshold" min="3.5" max="10" step="0.5" value="4.0"/>
-  </div>
-  <div class="field">
-    <label>Max iterations <span id="v-mi">10</span> <small>curve quality</small></label>
-    <input type="range" id="max-iterations" min="1" max="30" value="10"/>
-  </div>
-  <div class="field">
-    <label>Splice threshold <span id="v-st">45</span>° <small>curve splitting</small></label>
-    <input type="range" id="splice-threshold" min="1" max="180" value="45"/>
-  </div>
-  <div class="field">
-    <label>Path precision <span id="v-pp">3</span> <small>decimal places</small></label>
-    <input type="range" id="path-precision" min="1" max="8" value="3"/>
-  </div>
+  <div class="field"><label>Color precision <span id="v-cp">8</span></label><input type="range" id="color-precision" min="1" max="8" value="8"/></div>
+  <div class="field"><label>Layer difference <span id="v-ld">2</span></label><input type="range" id="layer-difference" min="1" max="64" value="2"/></div>
+  <div class="field"><label>Filter speckle <span id="v-fs">4</span> <small>noise</small></label><input type="range" id="filter-speckle" min="0" max="32" value="4"/></div>
+  <div class="field"><label>Corner threshold <span id="v-ct">60</span>° <small>sharpness</small></label><input type="range" id="corner-threshold" min="1" max="180" value="60"/></div>
+  <div class="field"><label>Length threshold <span id="v-lt">4.0</span> <small>detail</small></label><input type="range" id="length-threshold" min="3.5" max="10" step="0.5" value="4.0"/></div>
+  <div class="field"><label>Max iterations <span id="v-mi">10</span> <small>quality</small></label><input type="range" id="max-iterations" min="1" max="30" value="10"/></div>
+  <div class="field"><label>Splice threshold <span id="v-st">45</span>° <small>curves</small></label><input type="range" id="splice-threshold" min="1" max="180" value="45"/></div>
+  <div class="field"><label>Path precision <span id="v-pp">3</span> <small>decimals</small></label><input type="range" id="path-precision" min="1" max="8" value="3"/></div>
 
   <div class="sep"></div>
-
-  <!-- Presets -->
-  <div style="font-size:10px;color:#555;margin-bottom:4px">PRESETS</div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+  <div class="sec-label">Presets</div>
+  <div class="presets-grid">
     <button class="btn btn-sec" onclick="applyPreset('illustration')">Illustration</button>
     <button class="btn btn-sec" onclick="applyPreset('gradient')">Gradient</button>
     <button class="btn btn-sec" onclick="applyPreset('logo')">Logo / Flat</button>
@@ -124,12 +110,11 @@ main { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #222
   </div>
 
   <div class="sep"></div>
-
   <div class="status" id="status">Ready</div>
   <button class="btn btn-main" id="btn-run" disabled>Vectorize</button>
 
-  <div id="export-section" style="display:none; flex-direction:column; gap:6px;">
-    <div style="font-size:10px;color:#555;text-align:center">Export</div>
+  <div id="export-section" style="display:none;flex-direction:column;gap:5px;">
+    <div class="sec-label">Export</div>
     <div class="export-grid">
       <button class="btn btn-sec" onclick="exportAs('svg')">SVG</button>
       <button class="btn btn-sec" onclick="exportAs('png')">PNG</button>
@@ -140,19 +125,32 @@ main { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #222
 </aside>
 
 <main>
-  <div class="panel">
-    <div class="panel-hdr"><span>ORIGINAL</span><span id="orig-meta"></span></div>
-    <div class="panel-body" id="panel-orig"><div class="ph">No image loaded</div></div>
+  <div class="toolbar">
+    <span>Zoom:</span>
+    <button onclick="setZoom(zoom-0.25)">−</button>
+    <span id="zoom-label">100%</span>
+    <button onclick="setZoom(zoom+0.25)">+</button>
+    <button onclick="fitZoom()">Fit</button>
+    <button onclick="setZoom(1)">1:1</button>
+    <span style="margin-left:auto;color:#333" id="img-meta"></span>
   </div>
-  <div class="panel">
-    <div class="panel-hdr"><span>VECTOR RESULT</span><span id="svg-meta"></span></div>
-    <div class="panel-body" id="panel-svg"><div class="ph">Result will appear here</div></div>
+
+  <div class="panels">
+    <div class="panel">
+      <div class="panel-hdr"><span>Original</span><span id="orig-meta"></span></div>
+      <div class="vp" id="vp-orig"><div class="vp-inner" id="inner-orig"></div><div class="ph" id="ph-orig">No image loaded</div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-hdr"><span>Vector result</span><span id="svg-meta"></span></div>
+      <div class="vp" id="vp-svg"><div class="vp-inner" id="inner-svg"></div><div class="ph" id="ph-svg">Result will appear here</div></div>
+    </div>
   </div>
 </main>
 
 <script>
 const $ = id => document.getElementById(id);
 
+// ── Range labels ──────────────────────────────────────────────────────────
 [['color-precision','v-cp'],['layer-difference','v-ld'],['filter-speckle','v-fs'],
  ['corner-threshold','v-ct'],['length-threshold','v-lt'],['max-iterations','v-mi'],
  ['splice-threshold','v-st'],['path-precision','v-pp']].forEach(([id,lbl]) => {
@@ -161,19 +159,16 @@ const $ = id => document.getElementById(id);
   });
 });
 
-// Presets
+// ── Presets ───────────────────────────────────────────────────────────────
 const PRESETS = {
-  illustration: { colormode:'color',  hierarchical:'stacked', mode:'spline',   cp:8, ld:2,  fs:4,  ct:60,  lt:4.0, mi:10, st:45, pp:3 },
-  gradient:     { colormode:'color',  hierarchical:'stacked', mode:'spline',   cp:8, ld:2,  fs:0,  ct:60,  lt:4.0, mi:20, st:45, pp:8 },
-  logo:         { colormode:'color',  hierarchical:'stacked', mode:'spline',   cp:8, ld:16, fs:4,  ct:60,  lt:4.0, mi:10, st:45, pp:3 },
-  lineart:      { colormode:'binary', hierarchical:'stacked', mode:'spline',   cp:6, ld:16, fs:4,  ct:60,  lt:4.0, mi:10, st:45, pp:3 },
+  illustration: { colormode:'color',  hierarchical:'stacked', mode:'spline',  cp:8, ld:2,  fs:4, ct:60,  lt:4.0, mi:10, st:45, pp:3 },
+  gradient:     { colormode:'color',  hierarchical:'stacked', mode:'spline',  cp:8, ld:2,  fs:0, ct:60,  lt:4.0, mi:20, st:45, pp:8 },
+  logo:         { colormode:'color',  hierarchical:'stacked', mode:'spline',  cp:8, ld:16, fs:4, ct:60,  lt:4.0, mi:10, st:45, pp:3 },
+  lineart:      { colormode:'binary', hierarchical:'stacked', mode:'spline',  cp:6, ld:16, fs:4, ct:60,  lt:4.0, mi:10, st:45, pp:3 },
 };
-
 function applyPreset(name) {
   const p = PRESETS[name]; if (!p) return;
-  $('colormode').value        = p.colormode;
-  $('hierarchical').value     = p.hierarchical;
-  $('mode').value             = p.mode;
+  $('colormode').value = p.colormode; $('hierarchical').value = p.hierarchical; $('mode').value = p.mode;
   $('color-precision').value  = p.cp;  $('v-cp').textContent = p.cp;
   $('layer-difference').value = p.ld;  $('v-ld').textContent = p.ld;
   $('filter-speckle').value   = p.fs;  $('v-fs').textContent = p.fs;
@@ -184,16 +179,74 @@ function applyPreset(name) {
   $('path-precision').value   = p.pp;  $('v-pp').textContent = p.pp;
 }
 
-const dz = $('dz'), fi = $('file-input');
-dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
-dz.addEventListener('dragleave', () => dz.classList.remove('over'));
-dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); if(e.dataTransfer.files[0]) load(e.dataTransfer.files[0]); });
-fi.addEventListener('change', e => { if(e.target.files[0]) { load(e.target.files[0]); fi.value=''; } });
+// ── Pan & Zoom — both panels share exact same transform ───────────────────
+let zoom = 1, panX = 0, panY = 0;
+let imgW = 0, imgH = 0;
 
-let currentFile = null;
-let currentSvgText = null;
-let currentSvgUrl = null;
-let origW = 0, origH = 0;
+function applyTransform() {
+  const t = `translate(${panX}px,${panY}px) scale(${zoom})`;
+  $('inner-orig').style.transform = t;
+  $('inner-svg').style.transform  = t;
+  $('zoom-label').textContent = Math.round(zoom * 100) + '%';
+}
+
+function setZoom(z) {
+  if (!imgW) return;
+  const vp = $('vp-orig');
+  const cx = vp.clientWidth / 2, cy = vp.clientHeight / 2;
+  const newZ = Math.max(0.05, Math.min(10, z));
+  panX = cx - (cx - panX) * (newZ / zoom);
+  panY = cy - (cy - panY) * (newZ / zoom);
+  zoom = newZ;
+  applyTransform();
+}
+
+function fitZoom() {
+  if (!imgW) return;
+  const vp = $('vp-orig');
+  zoom = Math.min(vp.clientWidth / imgW, vp.clientHeight / imgH) * 0.95;
+  panX = (vp.clientWidth  - imgW * zoom) / 2;
+  panY = (vp.clientHeight - imgH * zoom) / 2;
+  applyTransform();
+}
+
+// Mouse wheel zoom
+['vp-orig','vp-svg'].forEach(id => {
+  $(id).addEventListener('wheel', e => {
+    e.preventDefault();
+    setZoom(zoom * (e.deltaY < 0 ? 1.1 : 0.9));
+  }, { passive: false });
+});
+
+// Drag to pan — single state shared by both panels
+let dragging = false, dragStartX = 0, dragStartY = 0, panStartX = 0, panStartY = 0;
+
+['vp-orig','vp-svg'].forEach(id => {
+  $(id).addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    dragging = true;
+    dragStartX = e.clientX; dragStartY = e.clientY;
+    panStartX = panX; panStartY = panY;
+    e.preventDefault();
+  });
+});
+document.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  panX = panStartX + (e.clientX - dragStartX);
+  panY = panStartY + (e.clientY - dragStartY);
+  applyTransform();
+});
+document.addEventListener('mouseup', () => { dragging = false; });
+window.addEventListener('resize', () => { if (imgW) fitZoom(); });
+
+// ── File loading ──────────────────────────────────────────────────────────
+const dz = $('dz'), fi = $('file-input');
+dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); if (e.dataTransfer.files[0]) load(e.dataTransfer.files[0]); });
+fi.addEventListener('change', e => { if (e.target.files[0]) { load(e.target.files[0]); fi.value = ''; } });
+
+let currentFile = null, currentSvgText = null, currentSvgUrl = null;
 
 function load(f) {
   currentFile = f;
@@ -202,75 +255,40 @@ function load(f) {
   reader.onload = e => {
     const img = new Image();
     img.onload = () => {
-      origW = img.naturalWidth;
-      origH = img.naturalHeight;
-      $('panel-orig').innerHTML = '';
+      imgW = img.naturalWidth; imgH = img.naturalHeight;
+      // Place image in vp-inner at natural size
+      $('inner-orig').innerHTML = '';
       const el = document.createElement('img');
       el.src = e.target.result;
-      $('panel-orig').appendChild(el);
-      $('orig-meta').textContent = `${origW}×${origH}`;
+      el.width = imgW; el.height = imgH;
+      $('inner-orig').appendChild(el);
+      $('ph-orig').style.display = 'none';
+      $('orig-meta').textContent = `${imgW}×${imgH}`;
+      $('img-meta').textContent  = `${imgW}×${imgH}`;
+      // Auto-fit after paint
+      requestAnimationFrame(() => requestAnimationFrame(fitZoom));
     };
     img.src = e.target.result;
   };
   reader.readAsDataURL(f);
   $('btn-run').disabled = false;
   $('export-section').style.display = 'none';
-  $('panel-svg').innerHTML = '<div class="ph">Result will appear here</div>';
+  $('inner-svg').innerHTML = '';
+  $('ph-svg').style.display = '';
+  $('ph-svg').textContent = 'Result will appear here';
   $('svg-meta').textContent = '';
   $('status').textContent = 'Ready';
 }
 
 function newImg() { fi.click(); }
 
-// Render SVG to canvas at target resolution using browser's vector renderer
-// Critical: set width/height on SVG element before creating blob URL,
-// otherwise browser rasterizes at SVG's native size then scales pixels up
-function svgToCanvas(svgText, targetW, targetH) {
-  return new Promise((resolve, reject) => {
-    // Inject target dimensions into SVG so browser renders at full resolution
-    // viewBox preserves the path coordinate space, width/height sets render size
-    // Extract current width/height to use as viewBox
-    const wMatch = svgText.match(/width="([\d.]+)"/);
-    const hMatch = svgText.match(/height="([\d.]+)"/);
-    const svgW = wMatch ? wMatch[1] : targetW;
-    const svgH = hMatch ? hMatch[1] : targetH;
-
-    let sized = svgText
-      .replace(/width="[\d.]+"/, `width="${targetW}"`)
-      .replace(/height="[\d.]+"/, `height="${targetH}"`);
-
-    // Add viewBox if not present so paths scale correctly
-    if (!sized.includes('viewBox')) {
-      sized = sized.replace(
-        `height="${targetH}"`,
-        `height="${targetH}" viewBox="0 0 ${svgW} ${svgH}"`
-      );
-    }
-
-    const blob = new Blob([sized], {type:'image/svg+xml'});
-    const url  = URL.createObjectURL(blob);
-    const img  = new Image();
-    img.width  = targetW;
-    img.height = targetH;
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width  = targetW;
-      canvas.height = targetH;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, targetW, targetH);
-      URL.revokeObjectURL(url);
-      resolve(canvas);
-    };
-    img.onerror = reject;
-    img.src = url;
-  });
-}
-
+// ── Vectorize ─────────────────────────────────────────────────────────────
 $('btn-run').addEventListener('click', async () => {
   if (!currentFile) return;
   $('btn-run').disabled = true;
   $('export-section').style.display = 'none';
-  $('panel-svg').innerHTML = '<div class="spin"></div>';
+  $('inner-svg').innerHTML = '<div class="spin"></div>';
+  $('ph-svg').style.display = 'none';
   $('status').textContent = 'Tracing…';
 
   const fd = new FormData();
@@ -288,7 +306,7 @@ $('btn-run').addEventListener('click', async () => {
   fd.append('path_precision',   $('path-precision').value);
 
   try {
-    const res  = await fetch('/api/vectorize', {method:'POST', body:fd});
+    const res  = await fetch('/api/vectorize', { method:'POST', body:fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
 
@@ -297,17 +315,29 @@ $('btn-run').addEventListener('click', async () => {
     currentSvgText = svgText;
     currentSvgUrl  = data.download;
 
-    // Display SVG directly — browser renders vector natively, no canvas needed
-    $('panel-svg').innerHTML = '';
+    // Parse SVG and set explicit dimensions + viewBox for correct scaling
     const parser = new DOMParser();
     const doc    = parser.parseFromString(svgText, 'image/svg+xml');
     const svgEl  = document.importNode(doc.querySelector('svg'), true);
-    svgEl.style.maxWidth  = '100%';
-    svgEl.style.maxHeight = '100%';
-    svgEl.style.width     = '100%';
-    svgEl.style.height    = '100%';
-    svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-    $('panel-svg').appendChild(svgEl);
+
+    // Get vtracer's natural dimensions
+    const svgW = parseFloat(svgEl.getAttribute('width')  || imgW);
+    const svgH = parseFloat(svgEl.getAttribute('height') || imgH);
+
+    // Set viewBox if missing (vtracer doesn't include one)
+    if (!svgEl.getAttribute('viewBox')) {
+      svgEl.setAttribute('viewBox', `0 0 ${svgW} ${svgH}`);
+    }
+
+    // Set display size to match original image exactly
+    svgEl.setAttribute('width',  imgW);
+    svgEl.setAttribute('height', imgH);
+    svgEl.style.display = 'block';
+    svgEl.style.width   = imgW + 'px';
+    svgEl.style.height  = imgH + 'px';
+
+    $('inner-svg').innerHTML = '';
+    $('inner-svg').appendChild(svgEl);
 
     const paths = svgText.match(/<path/g)?.length ?? 0;
     $('svg-meta').textContent = `${paths} paths`;
@@ -315,54 +345,62 @@ $('btn-run').addEventListener('click', async () => {
     $('export-section').style.display = 'flex';
   } catch(e) {
     $('status').textContent = 'Error: ' + e.message;
-    $('panel-svg').innerHTML = `<div class="ph">Error: ${e.message}</div>`;
+    $('inner-svg').innerHTML = '';
+    $('ph-svg').style.display = '';
+    $('ph-svg').textContent = 'Error: ' + e.message;
   } finally {
     $('btn-run').disabled = false;
   }
 });
 
+// ── Export ────────────────────────────────────────────────────────────────
+function svgToCanvas(svgText, targetW, targetH) {
+  return new Promise((resolve, reject) => {
+    const svgW = parseFloat(svgText.match(/width="([\d.]+)"/)?.[1] || targetW);
+    const svgH = parseFloat(svgText.match(/height="([\d.]+)"/)?.[1] || targetH);
+    let s = svgText
+      .replace(/width="[\d.]+"/, `width="${targetW}"`)
+      .replace(/height="[\d.]+"/, `height="${targetH}"`);
+    if (!s.includes('viewBox')) {
+      s = s.replace(`height="${targetH}"`, `height="${targetH}" viewBox="0 0 ${svgW} ${svgH}"`);
+    }
+    const blob = new Blob([s], { type:'image/svg+xml' });
+    const url  = URL.createObjectURL(blob);
+    const img  = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = targetW; c.height = targetH;
+      c.getContext('2d').drawImage(img, 0, 0, targetW, targetH);
+      URL.revokeObjectURL(url);
+      resolve(c);
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
 async function exportAs(fmt) {
   if (!currentSvgText) return;
-
   if (fmt === 'svg') {
     const a = document.createElement('a');
-    a.href = currentSvgUrl;
-    a.download = 'vector.svg';
-    a.click();
+    a.href = currentSvgUrl; a.download = 'vector.svg'; a.click();
     return;
   }
-
-  // Export at high resolution — 4000px on longest side
   const EXPORT_PX = 4000;
-  const scale  = EXPORT_PX / Math.max(origW, origH);
-  const expW   = Math.round(origW * scale);
-  const expH   = Math.round(origH * scale);
-
+  const scale = EXPORT_PX / Math.max(imgW, imgH);
+  const expW  = Math.round(imgW * scale);
+  const expH  = Math.round(imgH * scale);
   $('status').textContent = `Exporting at ${expW}×${expH}…`;
   const canvas = await svgToCanvas(currentSvgText, expW, expH);
-
   if (fmt === 'jpg') {
-    const ctx = document.createElement('canvas').getContext('2d');
-    // Add white background for JPG
     const c2 = document.createElement('canvas');
     c2.width = expW; c2.height = expH;
-    const ctx2 = c2.getContext('2d');
-    ctx2.fillStyle = '#ffffff';
-    ctx2.fillRect(0, 0, expW, expH);
-    ctx2.drawImage(canvas, 0, 0);
-    c2.toBlob(blob => {
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'vector.jpg';
-      a.click();
-    }, 'image/jpeg', 0.95);
+    const ctx = c2.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0,0,expW,expH);
+    ctx.drawImage(canvas,0,0);
+    c2.toBlob(b => { const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='vector.jpg'; a.click(); },'image/jpeg',0.95);
   } else {
-    canvas.toBlob(blob => {
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'vector.png';
-      a.click();
-    }, 'image/png');
+    canvas.toBlob(b => { const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='vector.png'; a.click(); },'image/png');
   }
   $('status').textContent = 'Exported!';
 }
