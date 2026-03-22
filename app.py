@@ -83,5 +83,7 @@ def api_download(job_id):
                      download_name=f"vector_{job_id}.svg")
 
 if __name__ == "__main__":
-    print("Vectorizer → http://localhost:5000")
-    app.run(debug=False, port=5000)
+    import os
+    port = int(os.environ.get("PORT", 5000))
+    print(f"Vectorizer → http://localhost:{port}")
+    app.run(debug=False, host="0.0.0.0", port=port)
