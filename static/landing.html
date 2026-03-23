@@ -476,6 +476,18 @@ footer {
   .hero { padding: 100px 20px 60px; }
   footer { flex-direction: column; text-align: center; }
 }
+
+/* Skeleton loader */
+.sample-skeleton {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s infinite;
+  pointer-events: none; aspect-ratio: 3/4;
+}
+@keyframes skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 </style>
 </head>
 <body>
@@ -573,48 +585,12 @@ footer {
       <h2 class="section-title">Click any image to<br><em>vectorize it</em></h2>
       <p class="section-sub" style="margin-bottom:0">No upload needed — just click and watch it process.</p>
     </div>
-    <div class="samples-grid reveal">
-
-      <div class="sample-card" onclick="launchSample('gradient-bg','Gradient Background','Flat Design')">
-        <div class="sample-thumb sample-bg-1 sample-shapes-1">
-          <div class="sample-overlay"><div class="sample-play">▶</div></div>
-        </div>
-        <div class="sample-meta">
-          <div class="sample-name">Gradient Background</div>
-          <div class="sample-tag">Flat Design preset</div>
-        </div>
-      </div>
-
-      <div class="sample-card" onclick="launchSample('sunset-scene','Sunset Scene','Artwork')">
-        <div class="sample-thumb sample-bg-2">
-          <div class="sample-overlay"><div class="sample-play">▶</div></div>
-        </div>
-        <div class="sample-meta">
-          <div class="sample-name">Sunset Scene</div>
-          <div class="sample-tag">Artwork preset</div>
-        </div>
-      </div>
-
-      <div class="sample-card" onclick="launchSample('colorful-art','Colorful Art','Rich Detail')">
-        <div class="sample-thumb sample-bg-3 sample-shapes-2">
-          <div class="sample-overlay"><div class="sample-play">▶</div></div>
-        </div>
-        <div class="sample-meta">
-          <div class="sample-name">Colorful Art</div>
-          <div class="sample-tag">Rich Detail preset</div>
-        </div>
-      </div>
-
-      <div class="sample-card" onclick="launchSample('abstract-logo','Abstract Logo','Logo & Clipart')">
-        <div class="sample-thumb sample-bg-4">
-          <div class="sample-overlay"><div class="sample-play">▶</div></div>
-        </div>
-        <div class="sample-meta">
-          <div class="sample-name">Abstract Logo</div>
-          <div class="sample-tag">Logo & Clipart preset</div>
-        </div>
-      </div>
-
+    <div class="samples-grid reveal" id="samples-grid">
+      <!-- Loaded dynamically from /api/samples -->
+      <div class="sample-card sample-skeleton"></div>
+      <div class="sample-card sample-skeleton"></div>
+      <div class="sample-card sample-skeleton"></div>
+      <div class="sample-card sample-skeleton"></div>
     </div>
     <div class="samples-cta reveal">
       <p>Or <span><a href="/app" style="color:var(--accent);text-decoration:none;font-weight:600;">upload your own image</a></span> — it's free</p>
@@ -871,12 +847,40 @@ const observer = new IntersectionObserver(entries => {
 document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
 // ── Sample launch ──
-function launchSample(id, name, preset) {
-  // Store sample info and redirect to app
+function launchSample(fileId, name, preset) {
   sessionStorage.setItem('samplePreset', preset);
   sessionStorage.setItem('sampleName', name);
-  window.location.href = '/app?sample=' + id;
+  window.location.href = '/app?sample=' + fileId;
 }
+
+// ── Dynamic sample loader ──
+const PRESET_LABELS = {
+  flat: 'Flat Design', illustration: 'Artwork',
+  photo: 'Rich Detail', logo: 'Logo & Clipart'
+};
+async function loadSamples() {
+  try {
+    const res = await fetch('/api/samples');
+    const samples = await res.json();
+    const grid = document.getElementById('samples-grid');
+    grid.innerHTML = samples.map(s => {
+      const stem = s.file.replace(/\.[^.]+$/, '');
+      const label = PRESET_LABELS[s.preset] || s.preset;
+      return `<div class="sample-card" onclick="launchSample('${stem}','${s.name}','${s.preset}')">
+        <div class="sample-thumb" style="background-image:url('${s.url}');background-size:cover;background-position:center;flex:1;position:relative;">
+          <div class="sample-overlay"><div class="sample-play">▶</div></div>
+        </div>
+        <div class="sample-meta">
+          <div class="sample-name">${s.name}</div>
+          <div class="sample-tag">${label} preset</div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    console.warn('Could not load samples:', e);
+  }
+}
+window.addEventListener('DOMContentLoaded', loadSamples);
 
 // ── Nav scroll effect ──
 window.addEventListener('scroll', () => {

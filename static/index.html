@@ -868,7 +868,8 @@ async function runVectorize(){
     $('inner-svg').innerHTML=''; $('inner-svg').appendChild(svgEl);
 
     $('svg-meta').textContent=`${data.paths} paths`;
-    setStatus(`Done in ${data.elapsed}s`,'ready');
+    const cacheTag = data.cached ? ' ⚡ cached' : '';
+    setStatus(`Done in ${data.elapsed}s${cacheTag}`,'ready');
     $('export-section').style.display='flex';
 
     // Setup reprocess button
@@ -926,6 +927,42 @@ async function exportAs(fmt){
     setStatus('Exported!','ready');
   }catch(e){setStatus('Export failed: '+e.message,'error');}
 }
+
+// ── Sample loader ─────────────────────────────────────────
+async function loadSampleFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const sampleId = params.get('sample');
+  const samplePreset = sessionStorage.getItem('samplePreset');
+  if (!sampleId) return;
+
+  // Fetch sample list to find the matching file
+  try {
+    const res = await fetch('/api/samples');
+    const samples = await res.json();
+    // Match by file stem (no extension)
+    const match = samples.find(s => s.file.replace(/\.[^.]+$/, '') === sampleId || s.name.toLowerCase().replace(/\s+/g,'-') === sampleId);
+    if (!match) return;
+
+    // Apply preset
+    if (match.preset) applyPreset(match.preset);
+
+    // Fetch the image file and load it
+    const imgRes = await fetch(`/api/sample-image/${match.file}`);
+    const blob = await imgRes.blob();
+    const file = new File([blob], match.file, { type: blob.type });
+    load(file);
+
+    // Clean up URL
+    window.history.replaceState({}, '', '/app');
+    sessionStorage.removeItem('samplePreset');
+    sessionStorage.removeItem('sampleName');
+  } catch(e) {
+    console.warn('Sample load failed:', e);
+  }
+}
+// Run on page load
+window.addEventListener('DOMContentLoaded', loadSampleFromUrl);
+
 </script>
 </body>
 </html>

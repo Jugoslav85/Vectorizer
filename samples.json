@@ -1,0 +1,22 @@
+[
+  {
+    "file":   "gradient.png",
+    "name":   "Gradient Background",
+    "preset": "flat"
+  },
+  {
+    "file":   "illustration.png",
+    "name":   "Sunset Scene",
+    "preset": "illustration"
+  },
+  {
+    "file":   "flowers.png",
+    "name":   "Colorful Art",
+    "preset": "photo"
+  },
+  {
+    "file":   "logo.png",
+    "name":   "Logo & Clipart",
+    "preset": "logo"
+  }
+]
