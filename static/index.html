@@ -577,6 +577,16 @@ body { height: calc(100vh); }
     </div>
   </div>
 
+  <!-- Preview screen — single panel, shown after upload before processing -->
+  <div id="preview-screen">
+    <div class="preview-panel">
+      <div class="preview-panel-hdr"><span>Original</span><span id="preview-meta"></span></div>
+      <div class="vp" id="vp-preview">
+        <div class="vp-inner" id="inner-preview"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Results screen -->
   <div id="results-screen">
     <div class="panels">
@@ -816,8 +826,14 @@ function load(f) {
       $('inner-orig').appendChild(el);
       $('orig-meta').textContent=`${imgW}×${imgH}`;
       $('img-meta').textContent=`${imgW}×${imgH} · ${fmt(f.size)}`;
-      // Show results screen with original, wait for user to click Vectorize
-      showResultsScreen();
+      // Show preview screen — single panel, wait for Vectorize click
+      // Copy image to preview panel
+      $('inner-preview').innerHTML = '';
+      const prev = document.createElement('img');
+      prev.src = e.target.result; prev.width = imgW; prev.height = imgH;
+      $('inner-preview').appendChild(prev);
+      $('preview-meta').textContent = imgW + '×' + imgH;
+      showPreviewScreen();
     };
     img.src=e.target.result;
   };
@@ -826,19 +842,37 @@ function load(f) {
 
 function showUploadScreen(){
   $('upload-screen').style.display='flex';
+  $('preview-screen').style.display='none';
   $('results-screen').style.display='none';
   $('toolbar').style.display='none';
 }
+function showPreviewScreen(){
+  $('upload-screen').style.display='none';
+  $('preview-screen').style.display='flex';
+  $('results-screen').style.display='none';
+  $('toolbar').style.display='flex';
+  requestAnimationFrame(()=>requestAnimationFrame(fitPreview));
+}
 function showResultsScreen(){
   $('upload-screen').style.display='none';
+  $('preview-screen').style.display='none';
   $('results-screen').style.display='flex';
   $('toolbar').style.display='flex';
   requestAnimationFrame(()=>requestAnimationFrame(fitZoom));
+}
+function fitPreview(){
+  if(!imgW) return;
+  const vp=$('vp-preview');
+  const z=Math.min(vp.clientWidth/imgW,vp.clientHeight/imgH)*.95;
+  const px=(vp.clientWidth-imgW*z)/2;
+  const py=(vp.clientHeight-imgH*z)/2;
+  $('inner-preview').style.transform=`translate(${px}px,${py}px) scale(${z})`;
 }
 function resetToUpload(){
   currentFile=null; currentSvgText=null; currentSvgUrl=null; currentJobId=null;
   hasResult=false; settingsSnapshot=null;
   $('inner-orig').innerHTML=''; $('inner-svg').innerHTML='';
+  $('inner-preview').innerHTML=''; $('preview-meta').textContent='';
   $('ph-svg').style.display=''; $('svg-meta').textContent='';
   $('export-section').style.display='none';
   $('btn-reprocess').style.display='none';
@@ -920,6 +954,12 @@ async function runVectorize(){
   $('inner-svg').innerHTML='';
   $('ph-svg').style.display='';
   $('ph-svg').innerHTML='<div class="ph-icon">✦</div>Processing…';
+  // Ensure original is in the results panel
+  if($('inner-orig').children.length === 0 && $('inner-preview').children.length > 0){
+    $('inner-orig').innerHTML = $('inner-preview').innerHTML;
+    $('orig-meta').textContent = $('preview-meta').textContent;
+  }
+  showResultsScreen();
   setStatus('Processing…','busy');
   $('svg-meta').textContent='';
 
