@@ -5,3 +5,4 @@ gunicorn
 cairosvg
 rembg[gpu]
 onnxruntime
+ 
