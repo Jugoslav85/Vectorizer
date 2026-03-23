@@ -829,18 +829,13 @@ function load(f) {
       // Show preview screen — single panel, wait for Vectorize click
       $('inner-preview').innerHTML = '';
       const prev = document.createElement('img');
-      prev.style.display = 'block';
-      prev.width = imgW;
-      prev.height = imgH;
+      prev.style.cssText = 'display:block;width:' + imgW + 'px;height:' + imgH + 'px;';
+      prev.src = e.target.result;
       $('inner-preview').appendChild(prev);
       $('preview-meta').textContent = imgW + '×' + imgH;
-      $('inner-preview').style.transformOrigin = '0 0';
       showPreviewScreen();
-      // Wait for image to paint before fitting
-      prev.onload = () => {
-        setTimeout(fitPreview, 50);
-      };
-      prev.src = e.target.result;
+      // Fit after screen is visible and image is painted
+      setTimeout(fitPreview, 80);
     };
     img.src=e.target.result;
   };
