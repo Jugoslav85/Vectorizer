@@ -1,6 +1,9 @@
-import uuid, time, traceback, hashlib, json
+import uuid, time, traceback, hashlib, json, os
 from pathlib import Path
 from flask import Flask, request, jsonify, send_from_directory, send_file, Response, make_response
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_wtf.csrf import CSRFProtect
 from vtracer_engine import vectorize
 
 BASE_DIR    = Path(__file__).parent
@@ -10,9 +13,9 @@ SAMPLES_DIR = STATIC_DIR / "images" / "samples"
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 app = Flask(__name__, static_folder=str(STATIC_DIR))
-app.secret_key = "vect-secret-change-in-prod"
+app.secret_key = os.environ.get("SECRET_KEY", "scaylr-dev-key-change-in-prod")
 
-ALLOWED        = {".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp", ".tiff"}
+ALLOWED        = {".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif"}
 MAX_FILE_BYTES = 20 * 1024 * 1024  # 20MB
 CACHE_TTL      = 3600              # 1 hour in seconds
 
@@ -73,34 +76,17 @@ def sitemap():
 def robots():
     return send_from_directory(BASE_DIR, "robots.txt"), 200, {"Content-Type": "text/plain"}
 
+@app.route("/terms")
+def terms():
+    return send_from_directory(STATIC_DIR, "terms.html")
+
+@app.route("/privacy")
+def privacy():
+    return send_from_directory(STATIC_DIR, "privacy.html")
+
 @app.route("/favicon.svg")
 def favicon():
     return send_from_directory(STATIC_DIR + "/images", "favicon.svg"), 200, {"Content-Type": "image/svg+xml"}
-
-@app.route("/remove-bg")
-def remove_bg_page():
-    return send_from_directory(STATIC_DIR, "remove_bg.html")
-
-@app.route("/api/remove-bg", methods=["POST"])
-def api_remove_bg():
-    if "file" not in request.files:
-        return jsonify({"error": "No file"}), 400
-    f = request.files["file"]
-    raw = f.read()
-    if len(raw) > MAX_FILE_BYTES:
-        return jsonify({"error": "File too large (max 20MB)"}), 400
-    try:
-        from rembg import remove, new_session
-        from io import BytesIO
-        import threading
-        # Lazy-load session
-        if not hasattr(api_remove_bg, '_session'):
-            api_remove_bg._session = new_session('birefnet-general')
-        result = remove(raw, session=api_remove_bg._session)
-        return Response(result, mimetype="image/png")
-    except Exception as e:
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
 
 @app.route("/app")
 def index():
@@ -137,6 +123,7 @@ def api_sample_image(filename):
 
 # ── Vectorize ─────────────────────────────────────────────────────────────────
 @app.route("/api/vectorize", methods=["POST"])
+@limiter.limit("30 per hour;5 per minute")
 def api_vectorize():
     if "file" not in request.files:
         return jsonify({"error": "No file"}), 400
@@ -146,6 +133,14 @@ def api_vectorize():
     raw = f.read()
     if len(raw) > MAX_FILE_BYTES:
         return jsonify({"error": "File too large (max 20MB)"}), 400
+    # Validate actual image content — not just extension
+    try:
+        from PIL import Image
+        import io
+        img_check = Image.open(io.BytesIO(raw))
+        img_check.verify()
+    except Exception:
+        return jsonify({"error": "Invalid image file"}), 400
 
     def gi(k, d):
         try: return int(request.form.get(k, d))
@@ -159,7 +154,6 @@ def api_vectorize():
         "color_precision": gi("color_precision",  8),
         "layer_difference":gi("layer_difference", 1),
         "filter_speckle":  gi("filter_speckle",   6),
-        "remove_bg":       1 if request.form.get("remove_bg") == "1" else 0,
     }
 
     # ── Cache lookup ──
@@ -183,27 +177,35 @@ def api_vectorize():
     # ── Process ──
     print(f'[cache] MISS for session {session_id[:8]}', flush=True)
     t0 = time.time()
-    remove_bg = request.form.get("remove_bg") == "1"
-    svg = vectorize(
-        raw,
-        posterize_bits    = 7,
-        unsharp_radius    = 0.5,
-        unsharp_percent   = 90,
-        unsharp_threshold = 4,
-        blur_radius       = settings["blur_radius"],
-        remove_bg         = remove_bg,
-        colormode         = "color",
-        hierarchical      = "stacked",
-        mode              = "spline",
-        corner_threshold  = 1,
-        length_threshold  = 3.5,
-        max_iterations    = 1,
-        splice_threshold  = 1,
-        path_precision    = 1,
-        filter_speckle    = settings["filter_speckle"],
-        color_precision   = settings["color_precision"],
-        layer_difference  = settings["layer_difference"],
-    )
+    # Run vectorize with 90s timeout
+    import concurrent.futures
+    def _run():
+        return vectorize(
+            raw,
+            posterize_bits    = 7,
+            unsharp_radius    = 0.5,
+            unsharp_percent   = 90,
+            unsharp_threshold = 4,
+            blur_radius       = settings["blur_radius"],
+            colormode         = "color",
+            hierarchical      = "stacked",
+            mode              = "spline",
+            corner_threshold  = 1,
+            length_threshold  = 3.5,
+            max_iterations    = 1,
+            splice_threshold  = 1,
+            path_precision    = 1,
+            filter_speckle    = settings["filter_speckle"],
+            color_precision   = settings["color_precision"],
+            layer_difference  = settings["layer_difference"],
+        )
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(_run)
+        try:
+            svg = future.result(timeout=90)
+        except concurrent.futures.TimeoutError:
+            future.cancel()
+            return jsonify({"error": "Processing timed out. Try a smaller image or simpler preset."}), 504
     elapsed = round(time.time() - t0, 2)
     paths   = svg.count("<path")
 

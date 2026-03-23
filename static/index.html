@@ -13,7 +13,7 @@
 <meta name="twitter:card" content="summary_large_image"/>
 <link rel="icon" type="image/svg+xml" href="/static/images/favicon.svg"/>
 
-<title>Scaylr</title>
+<title>Scaylr — Image to Vector Converter</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -191,6 +191,13 @@ input[type=range]{width:100%;accent-color:var(--accent);height:6px;cursor:pointe
 .btn-main:hover:not(:disabled){background:var(--accent2);transform:translateY(-1px);}
 .btn-main:active:not(:disabled){transform:translateY(0);}
 .btn-main:disabled{opacity:.35;cursor:not-allowed;transform:none;}
+.btn-cancel{
+  width:100%;padding:10px;border:1.5px solid var(--border2);border-radius:10px;
+  font-size:14px;font-family:var(--font-ui);font-weight:700;
+  cursor:pointer;background:transparent;color:var(--muted);
+  transition:all .15s;display:none;margin-top:8px;
+}
+.btn-cancel:hover{border-color:var(--red);color:var(--red);}
 .btn-reprocess{
   width:100%;padding:13px;border:none;border-radius:10px;
   font-size:15px;font-family:var(--font-ui);font-weight:700;
@@ -211,6 +218,13 @@ input[type=range]{width:100%;accent-color:var(--accent);height:6px;cursor:pointe
   padding:10px 6px;cursor:pointer;transition:all .15s;text-align:center;
 }
 .btn-export:hover{border-color:var(--green);color:var(--green);}
+.btn-copy-svg{
+  width:100%;padding:9px;border:1.5px solid var(--border2);border-radius:9px;
+  font-size:13px;font-family:var(--font-ui);font-weight:700;
+  cursor:pointer;background:transparent;color:var(--muted);
+  transition:all .15s;margin-top:8px;
+}
+.btn-copy-svg:hover{border-color:var(--accent);color:var(--accent);}
 .btn-new{
   grid-column:1/-1;
   background:transparent;color:var(--muted);
@@ -500,6 +514,9 @@ body { height: calc(100vh); }
 <body>
 
 
+<!-- Mobile settings toggle -->
+<button class="mobile-settings-btn" id="mobile-settings-btn" onclick="toggleMobileSettings()" title="Settings">⚙</button>
+
 <!-- App navigation -->
 <nav class="app-nav">
   <a href="/" class="app-nav-logo">Sc<span>aylr</span></a>
@@ -576,8 +593,9 @@ body { height: calc(100vh); }
         <span id="status">Upload an image to get started</span>
       </div>
       <button class="btn-main" id="btn-run" disabled onclick="runVectorize()">
-        Vectorize
+        Convert →
       </button>
+      <button class="btn-cancel" id="btn-cancel" onclick="cancelConvert()">✕ Cancel</button>
       <button class="btn-reprocess" id="btn-reprocess" disabled onclick="reprocess()">
         ↺ Re-process with new settings
       </button>
@@ -590,7 +608,8 @@ body { height: calc(100vh); }
           <button class="btn-export" onclick="exportAs('png')">PNG</button>
           <button class="btn-export" onclick="exportAs('jpg')">JPG</button>
         </div>
-        <button class="btn-new" onclick="resetToUpload()">+ Vectorize a new image</button>
+        <button class="btn-copy-svg" id="btn-copy-svg" onclick="copySvgCode()">⎘ Copy SVG code</button>
+        <button class="btn-new" onclick="resetToUpload()">+ Convert a new image</button>
       </div>
     </div>
   </div>
@@ -714,12 +733,17 @@ body { height: calc(100vh); }
 const $ = id => document.getElementById(id);
 
 // ── Theme ──────────────────────────────────────────────────
-let isDark = false;
+// Respect system preference, default to light
+const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+let isDark = prefersDark;
+document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+$('theme-icon').textContent = isDark ? '☀️' : '🌙';
+$('theme-label').textContent = isDark ? 'Light' : 'Dark';
 $('theme-toggle').addEventListener('click', () => {
   isDark = !isDark;
   document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-  $('theme-icon').textContent = isDark ? '🌙' : '☀️';
-  $('theme-label').textContent = isDark ? 'Dark' : 'Light';
+  $('theme-icon').textContent = isDark ? '☀️' : '🌙';
+  $('theme-label').textContent = isDark ? 'Light' : 'Dark';
 });
 
 // ── Sidebar ────────────────────────────────────────────────
@@ -800,6 +824,22 @@ function saveSettingsSnapshot() {
   $('btn-reprocess').disabled = true;
 }
 
+// ── Mobile sidebar toggle ────────────────────────────────
+function toggleMobileSettings() {
+  const aside = document.querySelector('aside');
+  aside.classList.toggle('mobile-open');
+}
+// Close sidebar when clicking outside on mobile
+document.addEventListener('click', e => {
+  const aside = document.querySelector('aside');
+  const btn = $('mobile-settings-btn');
+  if (aside && aside.classList.contains('mobile-open')) {
+    if (!aside.contains(e.target) && e.target !== btn) {
+      aside.classList.remove('mobile-open');
+    }
+  }
+});
+
 // ── Pan & Zoom ─────────────────────────────────────────────
 let zoom=1,panX=0,panY=0,imgW=0,imgH=0;
 function applyTransform(){
@@ -866,7 +906,7 @@ function load(f) {
       $('img-meta').textContent = imgW + '×' + imgH + ' · ' + fmt(f.size);
       showPreviewScreen();
       setTimeout(fitPreview, 100);
-      setStatus('Choose a style and click Vectorize', 'ready');
+      setStatus('Choose a style and click Convert', 'ready');
       $('btn-run').disabled = false;
     };
     img.src=e.target.result;
@@ -984,6 +1024,23 @@ function stopLB(){if(lbInterval)clearInterval(lbInterval);lbInterval=null;}
 function showModal(){$('modal').classList.add('visible');}
 function hideModal(){$('modal').classList.remove('visible');}
 
+// ── Abort controller ─────────────────────────────────────
+let currentAbortController = null;
+
+function cancelConvert() {
+  if (currentAbortController) {
+    currentAbortController.abort();
+    currentAbortController = null;
+  }
+  $('btn-cancel').style.display = 'none';
+  $('btn-run').disabled = false;
+  $('btn-run').style.display = 'block';
+  hideModal();
+  setStatus('Cancelled', '');
+  // Go back to preview if we have an image
+  if (imgW) showPreviewScreen();
+}
+
 // ── Main vectorize ─────────────────────────────────────────
 async function runVectorize(){
   if(!currentFile)return;
@@ -1031,7 +1088,20 @@ async function runVectorize(){
   fd.append('filter_speckle', $('filter-speckle').value);
 
   try{
-    const res=await fetch('/api/vectorize',{method:'POST',body:fd});
+    currentAbortController = new AbortController();
+  $('btn-cancel').style.display = 'block';
+  $('btn-run').style.display = 'none';
+  let res;
+  try {
+    res = await fetch('/api/vectorize',{method:'POST',body:fd,signal:currentAbortController.signal});
+  } catch(fetchErr) {
+    if (fetchErr.name === 'AbortError') return; // user cancelled
+    throw fetchErr;
+  } finally {
+    currentAbortController = null;
+    $('btn-cancel').style.display = 'none';
+  }
+  const dummy = null; // placeholder
     const data=await res.json();
     if(!res.ok)throw new Error(data.error);
     currentJobId=data.job_id;
@@ -1129,6 +1199,40 @@ async function exportAs(fmt){
 // ── Default preset on load ───────────────────────────────
 // Apply Flat Design as default when app opens
 applyPreset('flat');
+
+// ── Global error boundary ────────────────────────────────
+window.onerror = function(msg, src, line, col, err) {
+  hideModal();
+  setStatus('Something went wrong — please try again', 'error');
+  console.error('Global error:', msg, src, line);
+  return true;
+};
+window.addEventListener('unhandledrejection', e => {
+  if (e.reason && e.reason.name === 'AbortError') return;
+  hideModal();
+  setStatus('Something went wrong — please try again', 'error');
+  console.error('Unhandled rejection:', e.reason);
+});
+
+// ── Copy SVG code ────────────────────────────────────────
+async function copySvgCode() {
+  if (!currentSvgText) return;
+  try {
+    await navigator.clipboard.writeText(currentSvgText);
+    const btn = $('btn-copy-svg');
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copied to clipboard';
+    btn.style.color = 'var(--green)';
+    btn.style.borderColor = 'var(--green)';
+    setTimeout(() => {
+      btn.textContent = orig;
+      btn.style.color = '';
+      btn.style.borderColor = '';
+    }, 2500);
+  } catch(e) {
+    setStatus('Could not copy — try downloading SVG instead', 'error');
+  }
+}
 
 // ── Sample loader ─────────────────────────────────────────
 async function loadSampleFromUrl() {

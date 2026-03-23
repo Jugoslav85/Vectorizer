@@ -514,9 +514,16 @@ footer {
   .samples-grid { grid-template-columns: repeat(2, 1fr); }
   .hero { padding: 100px 20px 60px; }
   footer { flex-direction: column; text-align: center; padding: 32px 24px; }
-  .ba-wrap { aspect-ratio: 4/3; }
+  .ba-wrap { aspect-ratio: 1/1; }
+  .ba-handle { width: 40px; height: 40px; font-size: 14px; }
 }
 </style>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What file types can I upload?","acceptedAnswer":{"@type":"Answer","text":"You can upload PNG, JPG, WebP and HEIC files up to 20MB."}},{"@type":"Question","name":"What formats can I export in?","acceptedAnswer":{"@type":"Answer","text":"Export as SVG, PDF, PNG or JPG. SVG and PDF are recommended for print-on-demand."}},{"@type":"Question","name":"Will it work with AI-generated images?","acceptedAnswer":{"@type":"Answer","text":"Yes — Midjourney, DALL-E, Stable Diffusion and Firefly outputs all work well."}},{"@type":"Question","name":"Can I use the output commercially?","acceptedAnswer":{"@type":"Answer","text":"Yes. The output belongs to you for use on Printful, Gelato, Printify and other POD platforms."}},{"@type":"Question","name":"How long does processing take?","acceptedAnswer":{"@type":"Answer","text":"Most images convert in 5-15 seconds. Complex images may take up to 30 seconds."}}]}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://scaylr.io/"},{"@type":"ListItem","position":2,"name":"App","item":"https://scaylr.io/app"}]}
+</script>
 </head>
 <body>
 
@@ -554,13 +561,13 @@ footer {
   <div class="ba-intro reveal">
     <div class="section-label">Before & After</div>
     <h2 class="section-title">See the <em>difference</em></h2>
-    <p class="section-sub">Drag the slider to compare the original raster image with the vectorized output.</p>
+    <p class="section-sub">Drag the slider to compare the original raster image with the vector output.</p>
   </div>
   <div class="reveal">
     <div class="ba-wrap" id="ba-wrap">
-      <img class="ba-img" src="/static/images/after.png" alt="Vector result"/>
+      <img class="ba-img" src="/static/images/after.png" alt="Vector result" loading="lazy"/>
       <div class="ba-after" id="ba-after">
-        <img src="/static/images/before.png" alt="Original"/>
+        <img src="/static/images/before.png" alt="Original" loading="lazy"/>
       </div>
       <div class="ba-divider" id="ba-divider"></div>
       <div class="ba-handle" id="ba-handle">⟺</div>
@@ -605,7 +612,7 @@ footer {
   <div class="section-inner">
     <div class="reveal">
       <div class="section-label">Try it now</div>
-      <h2 class="section-title">Click any image to<br><em>vectorize it</em></h2>
+      <h2 class="section-title">Click any image to<br><em>convert it</em></h2>
       <p class="section-sub">No upload needed — just click and watch it process.</p>
     </div>
     <div class="samples-grid reveal" id="samples-grid">
@@ -670,7 +677,7 @@ footer {
       <h2 class="section-title">Simple, <em>honest</em> pricing</h2>
       <p class="section-sub" style="margin:0 auto;">Start free. Upgrade when you're ready. No hidden fees.</p>
     </div>
-    <div class="pricing-grid reveal">
+    <div class="pricing-grid reveal" style="max-width:800px;margin:56px auto 0;grid-template-columns:1fr 1fr;">
       <div class="plan">
         <div class="plan-name">Free</div>
         <div class="plan-price"><span class="plan-amount">$0</span><span class="plan-period">/ mo</span></div>
@@ -680,8 +687,7 @@ footer {
           <li>SVG & PNG export</li>
           <li>All 4 presets</li>
           <li class="dim">PDF export</li>
-          <li class="dim">Priority processing</li>
-          <li class="dim">Batch processing</li>
+          <li class="dim">Unlimited conversions</li>
         </ul>
         <a href="/app" class="btn-plan btn-plan-ghost">Get started free</a>
       </div>
@@ -689,31 +695,17 @@ footer {
         <div class="plan-badge">Most popular</div>
         <div class="plan-name">Pro</div>
         <div class="plan-price"><span class="plan-amount">$12</span><span class="plan-period">/ mo</span></div>
-        <div class="plan-desc">For designers and POD sellers who need volume and quality.</div>
+        <div class="plan-desc">For designers and POD sellers who need unlimited conversions.</div>
         <ul class="plan-features">
           <li>Unlimited conversions</li>
           <li>SVG, PDF, PNG & JPG export</li>
           <li>All 4 presets + fine-tuning</li>
           <li>Priority processing</li>
           <li>Higher resolution output</li>
-          <li class="dim">Batch processing</li>
         </ul>
-        <a href="/app" class="btn-plan btn-plan-primary">Start Pro free trial</a>
+        <a href="/app" class="btn-plan btn-plan-primary">Get Pro — $12/mo</a>
       </div>
-      <div class="plan">
-        <div class="plan-name">Studio</div>
-        <div class="plan-price"><span class="plan-amount">$29</span><span class="plan-period">/ mo</span></div>
-        <div class="plan-desc">For teams and agencies processing at scale.</div>
-        <ul class="plan-features">
-          <li>Unlimited conversions</li>
-          <li>All export formats</li>
-          <li>All presets + advanced controls</li>
-          <li>Priority processing</li>
-          <li>Batch processing</li>
-          <li>API access</li>
-        </ul>
-        <a href="/app" class="btn-plan btn-plan-ghost">Contact us</a>
-      </div>
+    </div>
     </div>
   </div>
 </section>
@@ -762,9 +754,9 @@ footer {
 <section class="cta-section">
   <div class="section-inner">
     <div class="cta-box reveal">
-      <h2 class="cta-title">Ready to vectorize<br>your <em>first image?</em></h2>
+      <h2 class="cta-title">Ready to convert<br>your <em>first image?</em></h2>
       <p class="cta-sub">No account needed. Free to try. Results in seconds.</p>
-      <a href="/app" class="btn-primary" style="font-size:17px;padding:17px 44px;">Start vectorizing free →</a>
+      <a href="/app" class="btn-primary" style="font-size:17px;padding:17px 44px;">Start for free →</a>
     </div>
   </div>
 </section>
@@ -777,6 +769,8 @@ footer {
     <a href="#pricing">Pricing</a>
     <a href="#faq">FAQ</a>
     <a href="/app">App</a>
+    <a href="/terms">Terms</a>
+    <a href="/privacy">Privacy</a>
   </div>
   <div class="footer-copy">© 2026 Scaylr. All rights reserved.</div>
 </footer>
@@ -802,7 +796,12 @@ window.addEventListener('load', () => setBAPos(50));
 setBAPos(50);
 
 wrap.addEventListener('mousedown', e => { draggingBA = true; e.preventDefault(); });
-wrap.addEventListener('touchstart', e => { draggingBA = true; }, { passive: true });
+wrap.addEventListener('touchstart', e => {
+  draggingBA = true;
+  const r = wrap.getBoundingClientRect();
+  setBAPos(((e.touches[0].clientX - r.left) / r.width) * 100);
+  e.preventDefault();
+}, { passive: false });
 document.addEventListener('mousemove', e => {
   if (!draggingBA) return;
   const r = wrap.getBoundingClientRect();
@@ -812,7 +811,8 @@ document.addEventListener('touchmove', e => {
   if (!draggingBA) return;
   const r = wrap.getBoundingClientRect();
   setBAPos(((e.touches[0].clientX - r.left) / r.width) * 100);
-}, { passive: true });
+  e.preventDefault();
+}, { passive: false });
 document.addEventListener('mouseup', () => { draggingBA = false; });
 document.addEventListener('touchend', () => { draggingBA = false; });
 window.addEventListener('resize', () => setBAPos(50));
