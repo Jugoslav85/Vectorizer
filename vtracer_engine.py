@@ -50,16 +50,16 @@ def _resize(img: Image.Image) -> Image.Image:
     return img
 
 
-def _remove_background(img: Image.Image) -> Image.Image:
-    """Remove image background using rembg U2Net model."""
-    from rembg import remove
-    print('[engine] removing background…', flush=True)
-    buf = io.BytesIO()
-    img.save(buf, format='PNG')
-    result_bytes = remove(buf.getvalue(), session=_get_rembg_session())
-    result = Image.open(io.BytesIO(result_bytes)).convert('RGBA')
-    print('[engine] background removed', flush=True)
-    return result
+# def _remove_background(img: Image.Image) -> Image.Image:
+ #    """Remove image background using rembg U2Net model."""
+ #    from rembg import remove
+ #    print('[engine] removing background…', flush=True)
+ #    buf = io.BytesIO()
+ #    img.save(buf, format='PNG')
+ #    result_bytes = remove(buf.getvalue(), session=_get_rembg_session())
+ #    result = Image.open(io.BytesIO(result_bytes)).convert('RGBA')
+ #    print('[engine] background removed', flush=True)
+ #    return result
 
 
 def _preprocess(img: Image.Image, bits: int, radius: float,
@@ -88,8 +88,8 @@ def vectorize(image_data: bytes,
     img = Image.open(io.BytesIO(image_data)).convert('RGBA')
 
     # Background removal before resize (works better at full res)
-    if remove_bg:
-        img = _remove_background(img)
+    #  if remove_bg:
+     #     img = _remove_background(img)
 
     img = _resize(img)
     w, h = img.size
