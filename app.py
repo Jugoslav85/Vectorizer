@@ -222,3 +222,9 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"Vectorizer → http://localhost:{port}")
     app.run(debug=False, host="0.0.0.0", port=port)
+
+from flask import send_from_directory
+
+@app.route("/static/<path:filename>")
+def static_files(filename):
+    return send_from_directory(STATIC_DIR, filename)
