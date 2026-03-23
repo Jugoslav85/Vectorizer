@@ -71,24 +71,7 @@ def remove_bg_page():
 
 @app.route("/api/remove-bg", methods=["POST"])
 def api_remove_bg():
-    if "file" not in request.files:
-        return jsonify({"error": "No file"}), 400
-    f = request.files["file"]
-    raw = f.read()
-    if len(raw) > MAX_FILE_BYTES:
-        return jsonify({"error": "File too large (max 20MB)"}), 400
-    try:
-        from rembg import remove, new_session
-        from io import BytesIO
-        import threading
-        # Lazy-load session
-        if not hasattr(api_remove_bg, '_session'):
-            api_remove_bg._session = new_session('birefnet-general')
-        result = remove(raw, session=api_remove_bg._session)
-        return Response(result, mimetype="image/png")
-    except Exception as e:
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+    return jsonify({"error": "Background removal temporarily disabled"}), 503
 
 @app.route("/app")
 def index():
