@@ -421,37 +421,6 @@ body { padding-top: 52px; }
 aside { top: 52px; height: calc(100vh - 52px); position: relative; }
 body { height: calc(100vh); }
 
-/* ── Remove BG toggle ── */
-.rembg-toggle {
-  display: flex; align-items: center; gap: 10px;
-  padding: 12px 14px;
-  background: var(--surface2);
-  border: 1.5px solid var(--border2);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: border-color .15s, background .15s;
-  margin-bottom: 18px;
-  user-select: none;
-}
-.rembg-toggle:hover { border-color: var(--accent); }
-.rembg-toggle.active {
-  border-color: var(--accent);
-  background: var(--accent-bg);
-}
-.rembg-check {
-  width: 18px; height: 18px; border-radius: 5px;
-  border: 2px solid var(--border2);
-  background: var(--surface);
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; font-size: 11px; color: #fff;
-  transition: all .15s;
-}
-.rembg-toggle.active .rembg-check {
-  background: var(--accent); border-color: var(--accent);
-}
-.rembg-text { flex: 1; }
-.rembg-label { font-size: 14px; font-weight: 700; color: var(--text); }
-.rembg-desc { font-size: 12px; color: var(--muted); margin-top: 2px; font-family: var(--font-mono); }
 
 
 /* ── Sidebar actions — always visible at bottom ── */
@@ -525,7 +494,6 @@ body { height: calc(100vh); }
 <nav class="app-nav">
   <a href="/" class="app-nav-logo">⬡ Vector<span>izer</span></a>
   <a href="/" class="app-nav-back">← Home</a>
-  <a href="/remove-bg" class="app-nav-back">Remove Background</a>
   <div class="app-nav-spacer"></div>
   <div class="app-nav-right">
     <button class="theme-toggle" id="theme-toggle">
@@ -540,15 +508,6 @@ body { height: calc(100vh); }
   <div class="sidebar-inner">
     <div class="header-row">
       <h1>⬡ Vector<span>izer</span></h1>
-    </div>
-
-    <!-- Remove background toggle -->
-    <div class="rembg-toggle" id="rembg-toggle" onclick="toggleRemoveBg()">
-      <div class="rembg-check" id="rembg-check"></div>
-      <div class="rembg-text">
-        <div class="rembg-label">Remove background</div>
-        <div class="rembg-desc">Cuts out the subject before vectorizing</div>
-      </div>
     </div>
 
     <div class="sec-label">Output style</div>
@@ -819,7 +778,6 @@ function getSettingsSnapshot() {
     ld: $('layer-difference').value,
     fs: $('filter-speckle').value,
     preset: activePreset,
-    rmbg: removeBg,
   });
 }
 function markSettingsChanged() {
@@ -830,15 +788,6 @@ function markSettingsChanged() {
 function saveSettingsSnapshot() {
   settingsSnapshot = getSettingsSnapshot();
   $('btn-reprocess').disabled = true;
-}
-
-// ── Remove background ────────────────────────────────────
-let removeBg = false;
-function toggleRemoveBg() {
-  removeBg = !removeBg;
-  $('rembg-toggle').classList.toggle('active', removeBg);
-  $('rembg-check').textContent = removeBg ? '✓' : '';
-  markSettingsChanged();
 }
 
 // ── Pan & Zoom ─────────────────────────────────────────────
@@ -1066,7 +1015,6 @@ async function runVectorize(){
 
   const fd=new FormData();
   fd.append('file',currentFile);
-  fd.append('remove_bg', removeBg ? '1' : '0');
   fd.append('blur_radius',    $('blur-radius').value);
   fd.append('color_precision',$('color-precision').value);
   fd.append('layer_difference',$('layer-difference').value);
@@ -1173,23 +1121,6 @@ async function exportAs(fmt){
 applyPreset('flat');
 
 // ── Sample loader ─────────────────────────────────────────
-// ── Handle image passed from remove-bg page ──────────────
-async function loadFromRembg() {
-  const stored = sessionStorage.getItem('rembgResult');
-  if (!stored) return;
-  sessionStorage.removeItem('rembgResult');
-  const w = parseInt(sessionStorage.getItem('rembgW') || '0');
-  const h = parseInt(sessionStorage.getItem('rembgH') || '0');
-  sessionStorage.removeItem('rembgW');
-  sessionStorage.removeItem('rembgH');
-  // Convert base64 to blob to file
-  const res = await fetch(stored);
-  const blob = await res.blob();
-  const file = new File([blob], 'background-removed.png', { type: 'image/png' });
-  load(file);
-  window.history.replaceState({}, '', '/app');
-}
-
 async function loadSampleFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const sampleId = params.get('sample');
@@ -1222,14 +1153,7 @@ async function loadSampleFromUrl() {
   }
 }
 // Run on page load
-window.addEventListener('DOMContentLoaded', () => {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('from') === 'rembg') {
-    loadFromRembg();
-  } else {
-    loadSampleFromUrl();
-  }
-});
+window.addEventListener('DOMContentLoaded', loadSampleFromUrl);
 
 </script>
 </body>
