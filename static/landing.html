@@ -189,17 +189,19 @@ section { position: relative; z-index: 1; }
   object-fit: cover;
 }
 .ba-after {
-  position: absolute; inset: 0;
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
   overflow: hidden;
   width: 50%;
-  transition: none;
 }
-.ba-after img { position: absolute; left: 0; top: 0; width: 820px; max-width: none; height: 100%; object-fit: cover; }
-.ba-divider {
-  position: absolute; top: 0; bottom: 0;
-  left: 50%; transform: translateX(-50%);
-  width: 2px; background: #fff;
-  z-index: 10; pointer-events: none;
+.ba-after img {
+  position: absolute;
+  top: 0; left: 0;
+  width: 820px;
+  max-width: none;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 .ba-handle {
   position: absolute; top: 50%; left: 50%;
@@ -507,19 +509,19 @@ footer {
       <p class="section-sub" style="margin-bottom:48px;">Drag the slider to compare the original raster image with the vectorized output.</p>
     </div>
     <div class="reveal">
-      <div class="ba-wrap" id="ba-wrap">
-        <!-- Before: your raster image -->
-<img class="ba-img" src="/static/images/before.png" alt="Original"/>
-<!-- After: your vector output -->
-<div class="ba-after" id="ba-after">
-  <img src="/static/images/after.png" alt="Vector result" 
-       style="position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;"/>
+     <div class="ba-wrap" id="ba-wrap">
+  <!-- After (vector) sits BELOW — full width, static -->
+  <img class="ba-img" src="/static/images/after.png" alt="Vector result"/>
+  <!-- Before (original) sits ON TOP — clipped by JS -->
+  <div class="ba-after" id="ba-after">
+    <img src="/static/images/before.png" alt="Original"
+         style="position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;display:block;"/>
+  </div>
+  <div class="ba-divider" id="ba-divider"></div>
+  <div class="ba-handle" id="ba-handle">⟺</div>
+  <div class="ba-label ba-label-before">Original</div>
+  <div class="ba-label ba-label-after">Vector</div>
 </div>
-        <div class="ba-divider" id="ba-divider"></div>
-        <div class="ba-handle" id="ba-handle">⟺</div>
-        <div class="ba-label ba-label-before">Original</div>
-        <div class="ba-label ba-label-after">Vector</div>
-      </div>
     </div>
   </div>
 </section>
