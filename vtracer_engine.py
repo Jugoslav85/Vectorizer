@@ -15,9 +15,9 @@ import math
 import vtracer
 from PIL import Image, ImageFilter, ImageOps
 
-MAX_PIXELS   = 1_300_000   # 1.3MP cap — downscale above this
-MIN_PIXELS   = 1_000_000   # 1MP floor — upscale below this
-TARGET_SMALL = 1_300_000   # upscale target matches the cap
+MAX_PIXELS   = 2_000_000   # 1.3MP cap — downscale above this
+MIN_PIXELS   = 1_500_000   # 1MP floor — upscale below this
+TARGET_SMALL = 2_000_000   # upscale target matches the cap
 
 
 def _resize(img: Image.Image) -> Image.Image:
