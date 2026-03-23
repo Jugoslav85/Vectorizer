@@ -444,6 +444,16 @@ body { height: calc(100vh); }
 .rembg-desc { font-size: 12px; color: var(--muted); margin-top: 2px; font-family: var(--font-mono); }
 
 
+/* ── Sidebar actions — always visible at bottom ── */
+.sidebar-actions {
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
+  padding: 16px 0 0;
+  margin-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
 /* ── Preview screen ── */
 #preview-screen {
   flex: 1;
@@ -580,11 +590,14 @@ body { height: calc(100vh); }
       </div>
     </div>
 
-    <div style="margin-top:20px;">
+    <div class="sidebar-actions">
       <div class="status-row">
         <div class="status-dot" id="status-dot"></div>
         <span id="status">Upload an image to get started</span>
       </div>
+      <button class="btn-main" id="btn-run" disabled onclick="runVectorize()">
+        Vectorize
+      </button>
       <button class="btn-reprocess" id="btn-reprocess" disabled onclick="reprocess()">
         ↺ Re-process with new settings
       </button>
