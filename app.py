@@ -19,6 +19,10 @@ def eany(e):
     return jsonify({"error": str(e)}), 500
 
 @app.route("/")
+def landing():
+    return send_from_directory(STATIC_DIR, "landing.html")
+
+@app.route("/app")
 def index():
     return send_from_directory(STATIC_DIR, "index.html")
 
