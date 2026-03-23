@@ -513,54 +513,38 @@ body { height: calc(100vh); }
 /* ══════════════════════════════════════════════
    MOBILE LAYOUT  (≤ 768px)
    ══════════════════════════════════════════════ */
-@media (max-width: 768px) {
+/* ── Hide mobile-only elements on desktop ── */
+#mobile-presets     { display: none; }
+#mobile-convert-bar { display: none; }
+#mobile-status      { display: none; }
+#mobile-result-modal{ display: none; }
 
-  /* Hide desktop elements on mobile */
-  .app-nav-back { display: none; }
-  .toggle-btn   { display: none; }
-  aside         { display: none; }  /* desktop sidebar hidden */
+/* ══════════════════════════════════════════
+   MOBILE  ≤ 900px  (phones + tablets + landscape)
+   ══════════════════════════════════════════ */
+@media (max-width: 900px) {
 
-  /* Nav compact */
+  /* ── Hide desktop chrome ── */
+  .app-nav-back  { display: none; }
+  .toggle-btn    { display: none !important; }
+  aside          { display: none !important; }
+  #toolbar       { display: none !important; }
+
+  /* ── Nav ── */
   .app-nav { padding: 0 12px 0 0; }
   .app-nav-logo { padding: 0 14px; font-size: 15px; }
   .app-nav-right { gap: 4px; }
   .theme-toggle { padding: 6px 10px; font-size: 12px; }
 
-  /* Main fills screen */
-  main { flex-direction: column; padding-top: 52px; }
+  /* ── Outer layout ── */
+  body   { overflow: hidden; height: 100dvh; }
+  main   { flex-direction: column; height: calc(100dvh - 52px); overflow: hidden; }
 
-  /* ── Mobile app panel ── */
-  #mobile-app {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    overflow: hidden;
-  }
-
-  /* Upload screen — mobile */
-  #upload-screen {
-    flex: 1;
-    flex-direction: column;
-    justify-content: flex-start;
-    padding: 0;
-    gap: 0;
-  }
-  .upload-hero { display: none; }
-  .upload-dropzone {
-    margin: 0;
-    border-radius: 0;
-    border-left: none;
-    border-right: none;
-    border-top: none;
-    padding: 20px 16px;
-    min-height: 120px;
-  }
-
-  /* Mobile presets bar — shown below upload on mobile */
+  /* ── Show mobile-only elements ── */
   #mobile-presets {
     display: flex !important;
     gap: 8px;
-    padding: 12px 16px;
+    padding: 10px 14px;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
     overflow-x: auto;
@@ -569,82 +553,54 @@ body { height: calc(100vh); }
     flex-shrink: 0;
   }
   #mobile-presets::-webkit-scrollbar { display: none; }
-  .mobile-preset-btn {
-    flex-shrink: 0;
-    padding: 8px 16px;
-    border-radius: 20px;
-    border: 1.5px solid var(--border2);
-    background: var(--surface2);
-    color: var(--muted);
-    font-size: 13px;
-    font-family: var(--font-ui);
-    font-weight: 700;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all .15s;
-  }
-  .mobile-preset-btn.active {
-    background: var(--accent-bg);
-    border-color: var(--accent);
-    color: var(--accent);
-  }
 
-  /* Mobile convert button */
   #mobile-convert-bar {
     display: flex !important;
-    padding: 12px 16px;
+    padding: 10px 14px;
     gap: 10px;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
     align-items: center;
   }
-  #mobile-btn-run {
-    flex: 1;
-    padding: 12px;
-    border: none;
-    border-radius: 10px;
-    background: var(--accent);
-    color: #fff;
-    font-size: 15px;
-    font-family: var(--font-ui);
-    font-weight: 800;
-    cursor: pointer;
-    transition: all .15s;
-  }
-  #mobile-btn-run:disabled { opacity: .35; cursor: not-allowed; }
-  #mobile-btn-run:not(:disabled):hover { background: var(--accent2); }
-  #mobile-btn-cancel {
-    display: none;
-    padding: 12px 16px;
-    border: 1.5px solid var(--border2);
-    border-radius: 10px;
-    background: transparent;
-    color: var(--muted);
-    font-size: 14px;
-    font-family: var(--font-ui);
-    font-weight: 700;
-    cursor: pointer;
-  }
+
   #mobile-status {
-    flex-shrink: 0;
-    padding: 10px 16px;
+    display: flex !important;
+    padding: 7px 14px;
     font-size: 12px;
     font-family: var(--font-mono);
     color: var(--muted);
     background: var(--surface);
     border-bottom: 1px solid var(--border);
-    display: flex;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0;
   }
 
-  /* Preview screen — mobile (full width single panel) */
-  #preview-screen { flex: 1; }
-  .preview-panel { flex: 1; }
-  #vp-preview { min-height: 300px; }
+  /* ── Upload screen ── */
+  #upload-screen {
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    padding: 24px 16px;
+    overflow: hidden;
+  }
+  .upload-hero { display: none; }
+  .upload-dropzone {
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    min-height: 160px;
+    border-radius: 14px;
+    padding: 28px 20px;
+  }
 
-  /* Results screen — hide on mobile (we use modal instead) */
+  /* ── Preview screen ── */
+  #preview-screen { flex: 1; overflow: hidden; }
+  .preview-panel  { flex: 1; }
+  #vp-preview     { flex: 1; }
+
+  /* ── Results screen — hidden on mobile, use modal ── */
   #results-screen { display: none !important; }
 
   /* ── Mobile result modal ── */
@@ -652,151 +608,139 @@ body { height: calc(100vh); }
     display: none;
     position: fixed;
     inset: 0;
-    z-index: 200;
+    z-index: 999;
     background: var(--bg);
     flex-direction: column;
   }
-  #mobile-result-modal.visible { display: flex; }
-  .mrm-header {
-    height: 52px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    padding: 0 16px;
-    gap: 12px;
-    flex-shrink: 0;
-  }
-  .mrm-title {
-    font-size: 15px;
-    font-weight: 800;
-    color: var(--text);
-    flex: 1;
-  }
-  .mrm-close {
-    background: none;
-    border: none;
-    font-size: 22px;
-    color: var(--muted);
-    cursor: pointer;
-    padding: 4px;
-    line-height: 1;
-  }
-  .mrm-close:hover { color: var(--text); }
-  .mrm-viewport {
-    flex: 1;
-    overflow: hidden;
-    position: relative;
-    background-color: var(--bg);
-    background-image:
-      linear-gradient(45deg, rgba(0,0,80,.04) 25%, transparent 25%),
-      linear-gradient(-45deg, rgba(0,0,80,.04) 25%, transparent 25%),
-      linear-gradient(45deg, transparent 75%, rgba(0,0,80,.04) 75%),
-      linear-gradient(-45deg, transparent 75%, rgba(0,0,80,.04) 75%);
-    background-size: 20px 20px;
-    background-position: 0 0, 0 10px, 10px -10px, -10px 0;
-    touch-action: none;
-  }
-  .mrm-inner {
-    position: absolute;
-    top: 0; left: 0;
-    transform-origin: 0 0;
-  }
-  .mrm-zoom-bar {
-    display: flex;
-    gap: 8px;
-    padding: 10px 16px;
-    background: var(--surface);
-    border-top: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-    align-items: center;
-  }
-  .mrm-zoom-btn {
-    padding: 7px 14px;
-    border: 1.5px solid var(--border2);
-    border-radius: 8px;
-    background: var(--surface2);
-    color: var(--text);
-    font-size: 14px;
-    font-weight: 700;
-    font-family: var(--font-ui);
-    cursor: pointer;
-  }
-  .mrm-zoom-label {
-    font-size: 13px;
-    font-family: var(--font-mono);
-    color: var(--muted);
-    min-width: 45px;
-    text-align: center;
-  }
-  .mrm-spacer { flex: 1; }
-  .mrm-meta {
-    font-size: 11px;
-    font-family: var(--font-mono);
-    color: var(--dim);
-  }
-  .mrm-actions {
-    padding: 14px 16px;
-    background: var(--surface);
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    flex-shrink: 0;
-  }
-  .mrm-btn-dl {
-    padding: 13px;
-    border: 1.5px solid var(--border2);
-    border-radius: 10px;
-    background: var(--surface2);
-    color: var(--text);
-    font-size: 14px;
-    font-family: var(--font-ui);
-    font-weight: 800;
-    cursor: pointer;
-    transition: all .15s;
-    text-align: center;
-  }
-  .mrm-btn-dl:hover { border-color: var(--accent); color: var(--accent); }
-  .mrm-btn-dl.primary {
-    background: var(--accent);
-    color: #fff;
-    border-color: var(--accent);
-    grid-column: 1 / -1;
-  }
-  .mrm-btn-dl.primary:hover { background: var(--accent2); }
-  .mrm-btn-copy {
-    grid-column: 1 / -1;
-    padding: 10px;
-    border: 1.5px solid var(--border);
-    border-radius: 9px;
-    background: transparent;
-    color: var(--muted);
-    font-size: 13px;
-    font-family: var(--font-ui);
-    font-weight: 700;
-    cursor: pointer;
-    transition: all .15s;
-  }
-  .mrm-btn-copy:hover { border-color: var(--accent); color: var(--accent); }
-  .mrm-btn-new {
-    grid-column: 1 / -1;
-    padding: 10px;
-    border: none;
-    border-radius: 9px;
-    background: transparent;
-    color: var(--dim);
-    font-size: 13px;
-    font-family: var(--font-mono);
-    cursor: pointer;
-  }
+  #mobile-result-modal.visible { display: flex !important; }
 }
 
-/* Hide mobile-only elements on desktop */
-#mobile-presets   { display: none; }
-#mobile-convert-bar { display: none; }
-#mobile-status    { display: none; }
-#mobile-result-modal { display: none; }
+
+/* ── Mobile preset pills ── */
+.mobile-preset-btn {
+  flex-shrink: 0;
+  padding: 8px 18px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border2);
+  background: var(--surface2);
+  color: var(--muted);
+  font-size: 13px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all .15s;
+}
+.mobile-preset-btn.active {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Mobile convert button ── */
+#mobile-btn-run {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 15px;
+  font-family: var(--font-ui);
+  font-weight: 800;
+  cursor: pointer;
+  transition: all .15s;
+}
+#mobile-btn-run:disabled { opacity: .35; cursor: not-allowed; }
+#mobile-btn-run:not(:disabled):hover { background: var(--accent2); }
+#mobile-btn-cancel {
+  display: none;
+  padding: 12px 16px;
+  border: 1.5px solid var(--border2);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ── Mobile result modal internals ── */
+.mrm-header {
+  height: 52px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.mrm-title { font-size: 15px; font-weight: 800; color: var(--text); flex: 1; }
+.mrm-close {
+  background: none; border: none; font-size: 22px;
+  color: var(--muted); cursor: pointer; padding: 4px; line-height: 1;
+}
+.mrm-close:hover { color: var(--text); }
+.mrm-zoom-bar {
+  display: flex; gap: 8px; padding: 10px 16px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  flex-shrink: 0; align-items: center;
+}
+.mrm-zoom-btn {
+  padding: 7px 14px; border: 1.5px solid var(--border2);
+  border-radius: 8px; background: var(--surface2); color: var(--text);
+  font-size: 14px; font-weight: 700; font-family: var(--font-ui); cursor: pointer;
+}
+.mrm-zoom-label {
+  font-size: 13px; font-family: var(--font-mono);
+  color: var(--muted); min-width: 45px; text-align: center;
+}
+.mrm-spacer { flex: 1; }
+.mrm-meta { font-size: 11px; font-family: var(--font-mono); color: var(--dim); }
+.mrm-viewport {
+  flex: 1; overflow: hidden; position: relative;
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(45deg,rgba(0,0,80,.04) 25%,transparent 25%),
+    linear-gradient(-45deg,rgba(0,0,80,.04) 25%,transparent 25%),
+    linear-gradient(45deg,transparent 75%,rgba(0,0,80,.04) 75%),
+    linear-gradient(-45deg,transparent 75%,rgba(0,0,80,.04) 75%);
+  background-size: 20px 20px;
+  background-position: 0 0,0 10px,10px -10px,-10px 0;
+  touch-action: none;
+}
+.mrm-inner { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+.mrm-actions {
+  padding: 12px 16px; background: var(--surface);
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px; flex-shrink: 0;
+}
+.mrm-btn-dl {
+  padding: 12px; border: 1.5px solid var(--border2);
+  border-radius: 10px; background: var(--surface2); color: var(--text);
+  font-size: 14px; font-family: var(--font-ui); font-weight: 800;
+  cursor: pointer; transition: all .15s; text-align: center;
+}
+.mrm-btn-dl:hover { border-color: var(--accent); color: var(--accent); }
+.mrm-btn-dl.primary {
+  background: var(--accent); color: #fff;
+  border-color: var(--accent); grid-column: 1 / -1;
+}
+.mrm-btn-dl.primary:hover { background: var(--accent2); }
+.mrm-btn-copy {
+  grid-column: 1 / -1; padding: 9px;
+  border: 1.5px solid var(--border); border-radius: 9px;
+  background: transparent; color: var(--muted);
+  font-size: 13px; font-family: var(--font-ui); font-weight: 700;
+  cursor: pointer; transition: all .15s;
+}
+.mrm-btn-copy:hover { border-color: var(--accent); color: var(--accent); }
+.mrm-btn-new {
+  grid-column: 1 / -1; padding: 9px; border: none;
+  border-radius: 9px; background: transparent; color: var(--dim);
+  font-size: 13px; font-family: var(--font-mono); cursor: pointer;
+}
 
 </style>
 </head>
@@ -817,58 +761,7 @@ body { height: calc(100vh); }
 
 <button class="toggle-btn" id="toggle-btn">◀</button>
 
-<!-- ═══════════════════════════════════════
-     MOBILE-ONLY UI ELEMENTS
-     ═══════════════════════════════════════ -->
 
-<!-- Mobile presets bar (horizontal scroll) -->
-<div id="mobile-presets">
-  <button class="mobile-preset-btn active" onclick="mobilePreset('flat')">Flat Design</button>
-  <button class="mobile-preset-btn" onclick="mobilePreset('illustration')">Artwork</button>
-  <button class="mobile-preset-btn" onclick="mobilePreset('photo')">Rich Detail</button>
-  <button class="mobile-preset-btn" onclick="mobilePreset('logo')">Logo & Clipart</button>
-</div>
-
-<!-- Mobile convert bar -->
-<div id="mobile-convert-bar">
-  <button id="mobile-btn-run" disabled onclick="mobileRunVectorize()">Convert →</button>
-  <button id="mobile-btn-cancel" onclick="cancelConvert()">✕</button>
-</div>
-
-<!-- Mobile status -->
-<div id="mobile-status">
-  <div class="status-dot" id="mobile-status-dot"></div>
-  <span id="mobile-status-text">Upload an image to get started</span>
-</div>
-
-<!-- Mobile result modal -->
-<div id="mobile-result-modal">
-  <div class="mrm-header">
-    <div class="mrm-title">Result</div>
-    <button class="mrm-close" onclick="closeMobileResult()">✕</button>
-  </div>
-  <div class="mrm-zoom-bar">
-    <button class="mrm-zoom-btn" onclick="mrmZoom(-0.25)">−</button>
-    <span class="mrm-zoom-label" id="mrm-zoom-label">100%</span>
-    <button class="mrm-zoom-btn" onclick="mrmZoom(0.25)">+</button>
-    <button class="mrm-zoom-btn" onclick="mrmFit()">Fit</button>
-    <div class="mrm-spacer"></div>
-    <span class="mrm-meta" id="mrm-meta"></span>
-  </div>
-  <div class="mrm-viewport" id="mrm-viewport">
-    <div class="mrm-inner" id="mrm-inner"></div>
-  </div>
-  <div class="mrm-actions">
-    <button class="mrm-btn-dl primary" onclick="exportAs('svg')">↓ Download SVG</button>
-    <button class="mrm-btn-dl" onclick="exportAs('pdf')">PDF</button>
-    <button class="mrm-btn-dl" onclick="exportAs('png')">PNG</button>
-    <button class="mrm-btn-dl" onclick="exportAs('jpg')">JPG</button>
-    <button class="mrm-btn-copy" onclick="copySvgCode()">⎘ Copy SVG code</button>
-    <button class="mrm-btn-new" onclick="mobileNewImage()">+ Convert a new image</button>
-  </div>
-</div>
-
-<!-- END MOBILE-ONLY -->
 
 
 <aside>
@@ -956,6 +849,26 @@ body { height: calc(100vh); }
 </aside>
 
 <main>
+
+  <!-- ═══ MOBILE-ONLY UI (inside main, above all screens) ═══ -->
+  <!-- Mobile presets bar -->
+  <div id="mobile-presets">
+    <button class="mobile-preset-btn active" onclick="mobilePreset('flat')">Flat Design</button>
+    <button class="mobile-preset-btn" onclick="mobilePreset('illustration')">Artwork</button>
+    <button class="mobile-preset-btn" onclick="mobilePreset('photo')">Rich Detail</button>
+    <button class="mobile-preset-btn" onclick="mobilePreset('logo')">Logo & Clipart</button>
+  </div>
+  <!-- Mobile convert + status bar -->
+  <div id="mobile-convert-bar">
+    <button id="mobile-btn-run" disabled onclick="mobileRunVectorize()">Convert →</button>
+    <button id="mobile-btn-cancel" onclick="cancelConvert()">✕</button>
+  </div>
+  <div id="mobile-status">
+    <div class="status-dot" id="mobile-status-dot"></div>
+    <span id="mobile-status-text">Upload an image to get started</span>
+  </div>
+  <!-- ═══ END MOBILE-ONLY ═══ -->
+
   <!-- Toolbar (shown only in results view) -->
   <div class="toolbar" id="toolbar" style="display:none;">
     <span>Zoom:</span>
@@ -1073,12 +986,11 @@ body { height: calc(100vh); }
 const $ = id => document.getElementById(id);
 
 // ── Theme ──────────────────────────────────────────────────
-// Respect system preference, default to light
-const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-let isDark = prefersDark;
-document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-$('theme-icon').textContent = isDark ? '☀️' : '🌙';
-$('theme-label').textContent = isDark ? 'Light' : 'Dark';
+// Always default to light — user can toggle to dark
+let isDark = false;
+document.documentElement.setAttribute('data-theme', 'light');
+$('theme-icon').textContent = '🌙';
+$('theme-label').textContent = 'Dark';
 $('theme-toggle').addEventListener('click', () => {
   isDark = !isDark;
   document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
@@ -1167,7 +1079,7 @@ function saveSettingsSnapshot() {
 // ══════════════════════════════════════════════════════
 // MOBILE LOGIC
 // ══════════════════════════════════════════════════════
-const isMobile = () => window.innerWidth <= 768;
+const isMobile = () => window.innerWidth <= 900;
 
 // ── Mobile preset selection ──
 function mobilePreset(name) {
@@ -1260,10 +1172,10 @@ function mrmFit() {
   mrmApplyTransform();
 }
 
-// Touch pan on modal viewport
-const mrmVp = document.getElementById ? (() => {
+// Touch pan on modal viewport — init after DOM ready
+function initMrmTouch() {
   const el = document.getElementById('mrm-viewport');
-  if (!el) return null;
+  if (!el) return;
   el.addEventListener('touchstart', e => {
     if (e.touches.length === 1) {
       mrmDragging = true;
@@ -1303,8 +1215,7 @@ const mrmVp = document.getElementById ? (() => {
     e.preventDefault();
   }, { passive: false });
   el.addEventListener('touchend', () => { mrmDragging = false; mrmLastDist = null; });
-  return el;
-})() : null;
+}
 
 // ── Close mobile result modal ──
 function closeMobileResult() {
@@ -1767,5 +1678,32 @@ async function loadSampleFromUrl() {
 window.addEventListener('DOMContentLoaded', loadSampleFromUrl);
 
 </script>
+<!-- Mobile result modal (fixed overlay) -->
+<div id="mobile-result-modal">
+  <div class="mrm-header">
+    <div class="mrm-title">Result</div>
+    <button class="mrm-close" onclick="closeMobileResult()">✕</button>
+  </div>
+  <div class="mrm-zoom-bar">
+    <button class="mrm-zoom-btn" onclick="mrmZoom(-0.25)">−</button>
+    <span class="mrm-zoom-label" id="mrm-zoom-label">100%</span>
+    <button class="mrm-zoom-btn" onclick="mrmZoom(0.25)">+</button>
+    <button class="mrm-zoom-btn" onclick="mrmFit()">Fit</button>
+    <div class="mrm-spacer"></div>
+    <span class="mrm-meta" id="mrm-meta"></span>
+  </div>
+  <div class="mrm-viewport" id="mrm-viewport">
+    <div class="mrm-inner" id="mrm-inner"></div>
+  </div>
+  <div class="mrm-actions">
+    <button class="mrm-btn-dl primary" onclick="exportAs('svg')">↓ Download SVG</button>
+    <button class="mrm-btn-dl" onclick="exportAs('pdf')">PDF</button>
+    <button class="mrm-btn-dl" onclick="exportAs('png')">PNG</button>
+    <button class="mrm-btn-dl" onclick="exportAs('jpg')">JPG</button>
+    <button class="mrm-btn-copy" onclick="copySvgCode()">⎘ Copy SVG code</button>
+    <button class="mrm-btn-new" onclick="mobileNewImage()">+ Convert a new image</button>
+  </div>
+</div>
+
 </body>
 </html>
