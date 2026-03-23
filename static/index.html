@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -7,23 +7,23 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
-:root,[data-theme="dark"]{
+:root,[data-theme="light"]{
+  --bg:#f7f7f9; --surface:#ffffff; --surface2:#f0f0f5;
+  --border:#e2e2ea; --border2:#d0d0de;
+  --accent:#5b4fd4; --accent2:#4438b8; --accent-bg:rgba(91,79,212,0.07);
+  --text:#111120; --muted:#55557a; --dim:#9999b8;
+  --green:#1a9e6e; --red:#d94f4f; --yellow:#b8920a;
+  --shadow:rgba(0,0,0,0.10);
+  --sidebar-w:420px;
+  --font-ui:'Syne',sans-serif; --font-mono:'DM Mono',monospace;
+}
+[data-theme="dark"]{
   --bg:#09090c; --surface:#13131a; --surface2:#1a1a24;
   --border:#252530; --border2:#32323f;
   --accent:#7c6af7; --accent2:#5b4fd4; --accent-bg:rgba(124,106,247,0.10);
   --text:#f0f0f8; --muted:#8888aa; --dim:#44445a;
   --green:#3ddba0; --red:#f97070; --yellow:#f5c842;
   --shadow:rgba(0,0,0,0.5);
-  --sidebar-w:420px;
-  --font-ui:'Syne',sans-serif; --font-mono:'DM Mono',monospace;
-}
-[data-theme="light"]{
-  --bg:#f0f0f5; --surface:#ffffff; --surface2:#f5f5fa;
-  --border:#dddde8; --border2:#c8c8d8;
-  --accent:#6055d4; --accent2:#4a41b8; --accent-bg:rgba(96,85,212,0.08);
-  --text:#111128; --muted:#55557a; --dim:#aaaacc;
-  --green:#1a9e6e; --red:#d94f4f; --yellow:#b8920a;
-  --shadow:rgba(0,0,0,0.12);
 }
 
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -368,7 +368,7 @@ main{display:flex;flex-direction:column;overflow:hidden;min-width:0;}
     <div class="header-row">
       <h1>⬡ Vector<span>izer</span></h1>
       <button class="theme-toggle" id="theme-toggle">
-        <span id="theme-icon">☀️</span><span id="theme-label">Light</span>
+        <span id="theme-icon">🌙</span><span id="theme-label">Dark</span>
       </button>
     </div>
 
@@ -553,12 +553,12 @@ main{display:flex;flex-direction:column;overflow:hidden;min-width:0;}
 const $ = id => document.getElementById(id);
 
 // ── Theme ──────────────────────────────────────────────────
-let isDark = true;
+let isDark = false;
 $('theme-toggle').addEventListener('click', () => {
   isDark = !isDark;
   document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-  $('theme-icon').textContent = isDark ? '☀️' : '🌙';
-  $('theme-label').textContent = isDark ? 'Light' : 'Dark';
+  $('theme-icon').textContent = isDark ? '🌙' : '☀️';
+  $('theme-label').textContent = isDark ? 'Dark' : 'Light';
 });
 
 // ── Sidebar ────────────────────────────────────────────────
