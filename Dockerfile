@@ -22,7 +22,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Pre-download rembg model so it's baked into the image
 # Avoids slow cold-start on first user request
-RUN python3 -c "from rembg import new_session; new_session('u2netp')"
+RUN python3 -c "from rembg import new_session; new_session('birefnet-general')"
 
 COPY . .
 

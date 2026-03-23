@@ -28,7 +28,7 @@ def _get_rembg_session():
     global _rembg_session
     if _rembg_session is None:
         from rembg import new_session
-        _rembg_session = new_session('u2netp')
+        _rembg_session = new_session('birefnet-general')
         print('[engine] rembg session loaded', flush=True)
     return _rembg_session
 

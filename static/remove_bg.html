@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Remove Background — Vectorizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #f7f7f9;
+  --surface:   #ffffff;
+  --surface2:  #f0f0f5;
+  --border:    #e2e2ea;
+  --border2:   #d0d0de;
+  --accent:    #5b4fd4;
+  --accent2:   #4438b8;
+  --accent-bg: rgba(91,79,212,0.07);
+  --text:      #111120;
+  --muted:     #55557a;
+  --dim:       #9999b8;
+  --green:     #1a9e6e;
+  --red:       #d94f4f;
+  --font-ui:   'Syne', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+  --font-display: 'Instrument Serif', serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  font-family:var(--font-ui);
+  background:var(--bg);color:var(--text);
+  min-height:100vh;
+  display:flex;flex-direction:column;
+}
+
+/* ── Nav ── */
+.app-nav{
+  height:52px;background:var(--surface);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;
+  padding:0;flex-shrink:0;
+  position:sticky;top:0;z-index:100;
+}
+.app-nav-logo{
+  display:flex;align-items:center;height:52px;padding:0 20px;
+  font-weight:800;font-size:16px;color:var(--text);
+  text-decoration:none;letter-spacing:-.3px;
+  border-right:1px solid var(--border);
+  transition:background .15s;
+}
+.app-nav-logo:hover{background:var(--surface2);}
+.app-nav-logo span{color:var(--accent);}
+.app-nav-link{
+  display:flex;align-items:center;height:52px;padding:0 16px;
+  font-size:13px;font-family:var(--font-mono);font-weight:500;
+  color:var(--muted);text-decoration:none;
+  border-right:1px solid var(--border);
+  transition:color .15s,background .15s;
+}
+.app-nav-link:hover{color:var(--text);background:var(--surface2);}
+.nav-active{color:var(--accent);background:var(--accent-bg);}
+.nav-spacer{flex:1;}
+
+/* ── Page layout ── */
+.page{flex:1;display:flex;flex-direction:column;}
+
+/* ── Hero strip ── */
+.hero-strip{
+  background:linear-gradient(135deg,#eeedfb 0%,#f7f7f9 100%);
+  border-bottom:1px solid var(--border);
+  padding:48px 48px 40px;
+  display:flex;align-items:flex-start;justify-content:space-between;
+  gap:32px;flex-wrap:wrap;
+}
+.hero-text h1{
+  font-family:var(--font-display);
+  font-size:clamp(28px,3vw,44px);
+  font-weight:400;letter-spacing:-.02em;
+  color:var(--text);line-height:1.1;margin-bottom:10px;
+}
+.hero-text h1 em{font-style:italic;color:var(--accent);}
+.hero-text p{
+  font-size:15px;color:var(--muted);
+  line-height:1.65;max-width:480px;font-weight:600;
+}
+.hero-pills{
+  display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;
+}
+.pill{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:20px;padding:5px 12px;
+  font-size:12px;font-family:var(--font-mono);color:var(--muted);
+  font-weight:500;
+}
+.pill::before{content:'✓';color:var(--green);font-weight:800;}
+.hero-tip{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:16px 20px;
+  font-size:13px;color:var(--muted);
+  font-family:var(--font-mono);line-height:1.65;
+  max-width:280px;flex-shrink:0;
+}
+.hero-tip strong{color:var(--text);display:block;margin-bottom:6px;font-size:14px;}
+
+/* ── Main work area ── */
+.work-area{
+  flex:1;display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:1px;background:var(--border);
+  min-height:0;
+}
+.panel{
+  background:var(--bg);
+  display:flex;flex-direction:column;
+  overflow:hidden;
+}
+.panel-hdr{
+  padding:10px 18px;background:var(--surface);
+  border-bottom:1px solid var(--border);
+  font-size:11px;font-family:var(--font-mono);
+  color:var(--dim);display:flex;
+  justify-content:space-between;align-items:center;
+  flex-shrink:0;letter-spacing:.5px;text-transform:uppercase;
+}
+.panel-hdr span:last-child{color:var(--accent);}
+.vp{
+  flex:1;overflow:hidden;position:relative;
+  background-color:var(--bg);
+  background-image:
+    linear-gradient(45deg,rgba(0,0,80,.04) 25%,transparent 25%),
+    linear-gradient(-45deg,rgba(0,0,80,.04) 25%,transparent 25%),
+    linear-gradient(45deg,transparent 75%,rgba(0,0,80,.04) 75%),
+    linear-gradient(-45deg,transparent 75%,rgba(0,0,80,.04) 75%);
+  background-size:20px 20px;
+  background-position:0 0,0 10px,10px -10px,-10px 0;
+  min-height:400px;
+}
+.vp-inner{position:absolute;top:0;left:0;transform-origin:0 0;}
+.vp-inner img{display:block;}
+.ph{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:12px;
+  color:var(--dim);font-size:13px;font-family:var(--font-mono);
+  pointer-events:none;
+}
+.ph-icon{font-size:32px;opacity:.25;}
+
+/* ── Upload zone (shown before any image) ── */
+#upload-zone{
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:60px 32px;text-align:center;
+  cursor:pointer;position:relative;
+  border:2px dashed var(--border2);border-radius:16px;
+  margin:32px;
+  background:var(--surface);
+  transition:border-color .15s,background .15s;
+  min-height:320px;
+}
+#upload-zone:hover,#upload-zone.over{
+  border-color:var(--accent);background:var(--accent-bg);
+}
+#upload-zone input{
+  position:absolute;inset:0;opacity:0;cursor:pointer;
+  width:100%;height:100%;
+}
+.uz-icon{font-size:40px;margin-bottom:16px;opacity:.4;}
+.uz-title{font-size:18px;font-weight:800;color:var(--text);margin-bottom:8px;}
+.uz-sub{font-size:14px;color:var(--muted);font-weight:600;}
+.uz-sub span{color:var(--accent);}
+.uz-formats{margin-top:16px;font-size:11px;color:var(--dim);font-family:var(--font-mono);letter-spacing:.5px;}
+
+/* ── Bottom action bar ── */
+.action-bar{
+  background:var(--surface);border-top:1px solid var(--border);
+  padding:16px 24px;
+  display:flex;align-items:center;gap:12px;
+  flex-shrink:0;
+}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--dim);flex-shrink:0;transition:background .3s;}
+.status-dot.ready{background:var(--green);}
+.status-dot.busy{background:var(--accent);animation:pulse 1s infinite;}
+.status-dot.error{background:var(--red);}
+#status-text{font-size:13px;color:var(--muted);font-family:var(--font-mono);}
+.spacer{flex:1;}
+
+.btn{
+  padding:11px 24px;border:none;border-radius:9px;
+  font-size:14px;font-family:var(--font-ui);font-weight:800;
+  cursor:pointer;transition:all .15s;letter-spacing:-.1px;
+}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover:not(:disabled){background:var(--accent2);transform:translateY(-1px);}
+.btn-primary:disabled{opacity:.35;cursor:not-allowed;transform:none;}
+.btn-ghost{
+  background:transparent;color:var(--muted);
+  border:1.5px solid var(--border2);
+}
+.btn-ghost:hover:not(:disabled){color:var(--text);border-color:var(--accent);}
+.btn-ghost:disabled{opacity:.35;cursor:not-allowed;}
+
+/* Vectorize CTA — appears after removal */
+.vectorize-cta{
+  display:none;
+  background:linear-gradient(135deg,#eeedfb 0%,#f0f0ff 100%);
+  border:1.5px solid rgba(91,79,212,.2);
+  border-radius:14px;padding:20px 22px;margin:16px 24px 0;
+  flex-direction:column;gap:12px;
+}
+.vectorize-cta.visible{display:flex;}
+.cta-top{display:flex;align-items:center;gap:12px;}
+.cta-icon{font-size:28px;}
+.cta-text h3{font-size:16px;font-weight:800;color:var(--text);letter-spacing:-.2px;}
+.cta-text p{font-size:13px;color:var(--muted);margin-top:3px;font-family:var(--font-mono);}
+.cta-actions{display:flex;gap:8px;}
+
+/* ── Modal ── */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.6);
+  z-index:300;display:none;align-items:center;justify-content:center;
+  backdrop-filter:blur(8px);
+}
+.modal-overlay.visible{display:flex;}
+.modal-box{
+  background:var(--surface);border:1px solid var(--border2);
+  border-radius:18px;padding:44px 48px;
+  min-width:320px;display:flex;flex-direction:column;
+  align-items:center;gap:22px;text-align:center;
+}
+.modal-spinner{
+  width:52px;height:52px;border:3px solid var(--border2);
+  border-top-color:var(--accent);border-radius:50%;
+  animation:spin .8s linear infinite;
+}
+.modal-title{font-size:18px;font-weight:800;color:var(--text);}
+.modal-sub{font-size:13px;color:var(--muted);font-family:var(--font-mono);line-height:1.6;}
+.modal-progress{width:100%;height:5px;background:var(--border2);border-radius:3px;overflow:hidden;}
+.modal-bar{
+  height:100%;
+  background:linear-gradient(90deg,var(--accent2),var(--accent));
+  border-radius:3px;width:0%;
+  transition:width .4s ease;
+}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+</style>
+</head>
+<body>
+
+<nav class="app-nav">
+  <a href="/" class="app-nav-logo">⬡ Vector<span>izer</span></a>
+  <a href="/" class="app-nav-link">← Home</a>
+  <a href="/app" class="app-nav-link">Vectorizer</a>
+  <a href="/remove-bg" class="app-nav-link nav-active">Remove Background</a>
+  <div class="nav-spacer"></div>
+</nav>
+
+<div class="page">
+
+  <!-- Hero strip -->
+  <div class="hero-strip">
+    <div class="hero-text">
+      <h1>Remove the background,<br><em>keep the subject</em></h1>
+      <p>Upload any image and our AI will cut out the subject with clean, precise edges. Then send it straight to the vectorizer.</p>
+      <div class="hero-pills">
+        <span class="pill">AI illustrations</span>
+        <span class="pill">Logos & icons</span>
+        <span class="pill">Product photos</span>
+        <span class="pill">Character art</span>
+      </div>
+    </div>
+    <div class="hero-tip">
+      <strong>💡 Pro tip</strong>
+      For best results, use images where the subject has clear contrast from the background. Works great with AI-generated artwork and illustrations.
+    </div>
+  </div>
+
+  <!-- Vectorize CTA (shown after removal) -->
+  <div class="vectorize-cta" id="vectorize-cta">
+    <div class="cta-top">
+      <div class="cta-icon">⬡</div>
+      <div class="cta-text">
+        <h3>Ready to vectorize?</h3>
+        <p>Send the cutout directly to the vectorizer — no re-upload needed.</p>
+      </div>
+    </div>
+    <div class="cta-actions">
+      <button class="btn btn-primary" onclick="sendToVectorizer()">Vectorize this image →</button>
+      <button class="btn btn-ghost" onclick="downloadResult()">Download PNG first</button>
+    </div>
+  </div>
+
+  <!-- Work area -->
+  <div class="work-area">
+    <!-- Left: upload / original -->
+    <div class="panel">
+      <div class="panel-hdr"><span>Original</span><span id="orig-meta"></span></div>
+      <div class="vp" id="vp-orig">
+        <div id="upload-zone">
+          <input type="file" id="file-input" accept="image/*"/>
+          <div class="uz-icon">⬆</div>
+          <div class="uz-title">Drop your image here</div>
+          <div class="uz-sub">or <span>browse files</span> · paste with Cmd+V</div>
+          <div class="uz-formats">PNG · JPG · WEBP · max 20MB</div>
+        </div>
+        <div class="vp-inner" id="inner-orig"></div>
+        <div class="ph" id="ph-orig" style="display:none"><div class="ph-icon">🖼</div>No image loaded</div>
+      </div>
+    </div>
+
+    <!-- Right: result -->
+    <div class="panel">
+      <div class="panel-hdr"><span>Background removed</span><span id="result-meta"></span></div>
+      <div class="vp" id="vp-result">
+        <div class="vp-inner" id="inner-result"></div>
+        <div class="ph" id="ph-result"><div class="ph-icon">✦</div>Result will appear here</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action bar -->
+  <div class="action-bar">
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-text">Upload an image to get started</span>
+    <div class="spacer"></div>
+    <button class="btn btn-ghost" id="btn-new" onclick="resetAll()" style="display:none">+ New image</button>
+    <button class="btn btn-primary" id="btn-remove" disabled onclick="removeBackground()">Remove Background</button>
+  </div>
+
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-box">
+    <div class="modal-spinner"></div>
+    <div class="modal-title">Removing background</div>
+    <div class="modal-sub">AI is analysing and cutting out<br>the subject from your image…</div>
+    <div class="modal-progress"><div class="modal-bar" id="modal-bar"></div></div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+// ── State ──
+let currentFile = null;
+let resultBlob = null;
+let imgW = 0, imgH = 0;
+
+function setStatus(msg, state='') {
+  $('status-text').textContent = msg;
+  $('status-dot').className = 'status-dot' + (state ? ' '+state : '');
+}
+
+// ── File handling ──
+const dz = $('upload-zone');
+const fi = $('file-input');
+
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('over');
+  if (e.dataTransfer.files[0]) load(e.dataTransfer.files[0]);
+});
+fi.addEventListener('change', e => {
+  if (e.target.files[0]) { load(e.target.files[0]); fi.value = ''; }
+});
+document.addEventListener('paste', e => {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) { const f = item.getAsFile(); if (f) { load(f); break; } }
+  }
+});
+
+function fmt(b) { return b > 1048576 ? (b/1048576).toFixed(1)+'MB' : Math.round(b/1024)+'KB'; }
+
+function load(f) {
+  if (f.size > 20*1024*1024) { setStatus('File too large (max 20MB)', 'error'); return; }
+  currentFile = f; resultBlob = null;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      imgW = img.naturalWidth; imgH = img.naturalHeight;
+      // Hide upload zone, show image
+      dz.style.display = 'none';
+      $('inner-orig').innerHTML = '';
+      const el = document.createElement('img');
+      el.style.cssText = 'display:block;width:'+imgW+'px;height:'+imgH+'px;';
+      el.src = e.target.result;
+      $('inner-orig').appendChild(el);
+      $('orig-meta').textContent = imgW+'×'+imgH;
+      setTimeout(() => fitPanel('vp-orig', 'inner-orig', imgW, imgH), 80);
+      setStatus('Ready — click Remove Background', 'ready');
+      $('btn-remove').disabled = false;
+      $('vectorize-cta').classList.remove('visible');
+      $('ph-result').style.display = '';
+      $('inner-result').innerHTML = '';
+      $('result-meta').textContent = '';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(f);
+}
+
+function fitPanel(vpId, innerId, w, h) {
+  const vp = $(vpId), inner = $(innerId);
+  if (!vp || !inner || !w) return;
+  const z = Math.min(vp.clientWidth/w, vp.clientHeight/h) * 0.95;
+  const px = (vp.clientWidth - w*z) / 2;
+  const py = (vp.clientHeight - h*z) / 2;
+  inner.style.transformOrigin = '0 0';
+  inner.style.transform = `translate(${px}px,${py}px) scale(${z})`;
+}
+
+window.addEventListener('resize', () => {
+  if (imgW) {
+    fitPanel('vp-orig', 'inner-orig', imgW, imgH);
+    if (resultBlob) fitPanel('vp-result', 'inner-result', imgW, imgH);
+  }
+});
+
+// ── Progress bar animation ──
+let progressInterval = null;
+let progressVal = 0;
+function startProgress() {
+  progressVal = 0;
+  $('modal-bar').style.width = '0%';
+  progressInterval = setInterval(() => {
+    // Slow crawl — never reaches 100% until done
+    const remaining = 92 - progressVal;
+    progressVal += remaining * 0.04;
+    $('modal-bar').style.width = progressVal + '%';
+  }, 200);
+}
+function finishProgress(cb) {
+  clearInterval(progressInterval);
+  $('modal-bar').style.width = '100%';
+  setTimeout(cb, 400);
+}
+
+// ── Remove background ──
+async function removeBackground() {
+  if (!currentFile) return;
+  $('btn-remove').disabled = true;
+  setStatus('Removing background…', 'busy');
+  $('modal').classList.add('visible');
+  startProgress();
+
+  const fd = new FormData();
+  fd.append('file', currentFile);
+
+  try {
+    const res = await fetch('/api/remove-bg', { method: 'POST', body: fd });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Server error');
+    }
+    const blob = await res.blob();
+    resultBlob = blob;
+
+    finishProgress(() => {
+      $('modal').classList.remove('visible');
+
+      // Show result
+      const url = URL.createObjectURL(blob);
+      $('inner-result').innerHTML = '';
+      const img = document.createElement('img');
+      img.style.cssText = 'display:block;width:'+imgW+'px;height:'+imgH+'px;';
+      img.src = url;
+      $('inner-result').appendChild(img);
+      $('ph-result').style.display = 'none';
+      $('result-meta').textContent = 'Background removed';
+      setTimeout(() => fitPanel('vp-result', 'inner-result', imgW, imgH), 80);
+
+      setStatus('Background removed successfully', 'ready');
+      $('btn-remove').disabled = false;
+      $('btn-new').style.display = 'block';
+      $('vectorize-cta').classList.add('visible');
+    });
+
+  } catch(e) {
+    clearInterval(progressInterval);
+    $('modal').classList.remove('visible');
+    setStatus('Error: ' + e.message, 'error');
+    $('btn-remove').disabled = false;
+  }
+}
+
+// ── Download result ──
+function downloadResult() {
+  if (!resultBlob) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(resultBlob);
+  a.download = 'background-removed.png';
+  a.click();
+}
+
+// ── Send to vectorizer ──
+async function sendToVectorizer() {
+  if (!resultBlob) return;
+  // Store blob in sessionStorage as base64 and redirect
+  const reader = new FileReader();
+  reader.onload = e => {
+    sessionStorage.setItem('rembgResult', e.target.result);
+    sessionStorage.setItem('rembgW', imgW);
+    sessionStorage.setItem('rembgH', imgH);
+    window.location.href = '/app?from=rembg';
+  };
+  reader.readAsDataURL(resultBlob);
+}
+
+// ── Reset ──
+function resetAll() {
+  currentFile = null; resultBlob = null; imgW = 0; imgH = 0;
+  $('inner-orig').innerHTML = '';
+  $('inner-result').innerHTML = '';
+  $('ph-result').style.display = '';
+  dz.style.display = 'flex';
+  $('orig-meta').textContent = '';
+  $('result-meta').textContent = '';
+  $('btn-remove').disabled = true;
+  $('btn-new').style.display = 'none';
+  $('vectorize-cta').classList.remove('visible');
+  setStatus('Upload an image to get started', '');
+}
+</script>
+</body>
+</html>
