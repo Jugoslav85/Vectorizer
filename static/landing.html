@@ -3,9 +3,81 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Vectorizer — Turn any image into a scalable vector</title>
+<meta name="description" content="Scaylr converts raster images to scalable SVG vectors in seconds. Upload PNG, JPG or AI artwork — download SVG, PDF, PNG or JPG. Perfect for print-on-demand, embroidery and design."/>
+<meta name="keywords" content="image to vector, raster to vector, SVG converter, PNG to SVG, vectorizer, AI art vector, print on demand SVG, vectorize image"/>
+<meta name="robots" content="index, follow"/>
+<meta name="author" content="Scaylr"/>
+<link rel="canonical" href="https://scaylr.io/"/>
+
+<!-- Open Graph -->
+<meta property="og:type" content="website"/>
+<meta property="og:url" content="https://scaylr.io/"/>
+<meta property="og:title" content="Scaylr — Turn any image into a scalable vector"/>
+<meta property="og:description" content="Convert PNG, JPG or AI artwork to crisp SVG vectors in seconds. Built for print-on-demand sellers, AI artists and designers."/>
+<meta property="og:image" content="https://scaylr.io/static/images/og-image.png"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta property="og:site_name" content="Scaylr"/>
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:url" content="https://scaylr.io/"/>
+<meta name="twitter:title" content="Scaylr — Turn any image into a scalable vector"/>
+<meta name="twitter:description" content="Convert PNG, JPG or AI artwork to crisp SVG vectors in seconds. Built for print-on-demand sellers, AI artists and designers."/>
+<meta name="twitter:image" content="https://scaylr.io/static/images/og-image.png"/>
+
+<!-- Favicon -->
+<link rel="icon" type="image/svg+xml" href="/static/images/favicon.svg"/>
+<link rel="alternate icon" href="/static/images/favicon.ico"/>
+<link rel="apple-touch-icon" href="/static/images/favicon-180.png"/>
+
+<!-- JSON-LD Schema -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Scaylr",
+  "url": "https://scaylr.io",
+  "description": "Scaylr converts raster images (PNG, JPG, WebP) to scalable SVG vectors in seconds using AI-powered processing. Built for print-on-demand sellers, AI artists and graphic designers.",
+  "applicationCategory": "DesignApplication",
+  "operatingSystem": "Web",
+  "browserRequirements": "Requires a modern web browser",
+  "offers": [
+    {
+      "@type": "Offer",
+      "name": "Free",
+      "price": "0",
+      "priceCurrency": "USD",
+      "description": "5 conversions per day, SVG and PNG export"
+    },
+    {
+      "@type": "Offer",
+      "name": "Pro",
+      "price": "12",
+      "priceCurrency": "USD",
+      "description": "Unlimited conversions, all export formats including PDF"
+    }
+  ],
+  "featureList": [
+    "PNG to SVG conversion",
+    "JPG to SVG conversion",
+    "AI artwork vectorization",
+    "4 style presets",
+    "SVG, PDF, PNG and JPG export",
+    "Print-on-demand ready output"
+  ],
+  "screenshot": "https://scaylr.io/static/images/og-image.png",
+  "creator": {
+    "@type": "Organization",
+    "name": "Scaylr",
+    "url": "https://scaylr.io"
+  }
+}
+</script>
+
+<title>Scaylr — Turn any image into a scalable vector</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg:        #f7f7f9;
@@ -21,7 +93,7 @@
   --muted:     #55557a;
   --dim:       #9999b8;
   --green:     #1a9e6e;
-  --font-display: 'Instrument Serif', serif;
+  --font-display: 'Syne', sans-serif;
   --font-ui:      'Syne', sans-serif;
   --font-mono:    'DM Mono', monospace;
 }
@@ -59,13 +131,13 @@ nav {
 }
 .nav-links a:hover { color: var(--text); }
 .nav-cta {
-  background: var(--accent); color: #fff; border: none;
+  background: var(--accent); color: #fff !important; border: none;
   padding: 9px 22px; border-radius: 8px;
   font-size: 14px; font-family: var(--font-ui); font-weight: 700;
   cursor: pointer; text-decoration: none; display: inline-block;
   transition: background .15s, transform .1s;
 }
-.nav-cta:hover { background: var(--accent2); transform: translateY(-1px); }
+.nav-cta:hover { background: var(--accent2); transform: translateY(-1px); color: #fff !important; }
 
 /* ── Hero ── */
 .hero {
@@ -96,7 +168,7 @@ nav {
   font-family: var(--font-display);
   font-size: clamp(52px, 7vw, 96px);
   font-weight: 400; line-height: 1.02;
-  letter-spacing: -.03em; color: var(--text);
+  letter-spacing: -.04em; color: var(--text);
   margin-bottom: 24px; max-width: 960px;
   animation: fadeUp .6s ease .1s both;
 }
@@ -143,7 +215,7 @@ nav {
 
 /* ── Section common ── */
 section { position: relative; z-index: 1; }
-.section-inner { max-width: 1300px; margin: 0 auto; padding: 0 48px; }
+.section-inner { max-width: 1520px; margin: 0 auto; padding: 0 40px; }
 .section-label {
   font-size: 11px; font-family: var(--font-mono); color: var(--accent);
   letter-spacing: 2.5px; text-transform: uppercase; margin-bottom: 14px;
@@ -153,16 +225,16 @@ section { position: relative; z-index: 1; }
 .section-title {
   font-family: var(--font-display);
   font-size: clamp(36px, 4vw, 56px);
-  font-weight: 400; line-height: 1.08;
-  letter-spacing: -.02em; color: var(--text);
+  font-weight: 800; line-height: 1.05;
+  letter-spacing: -.04em; color: var(--text);
   margin-bottom: 16px;
 }
 .section-title em { font-style: italic; color: var(--accent); }
 .section-sub { font-size: 17px; color: var(--muted); line-height: 1.65; max-width: 520px; font-weight: 600; }
 
 /* ── Before/After ── */
-.ba-section { padding: 100px 0 0; }
-.ba-intro { padding: 0 48px; max-width: 1300px; margin: 0 auto 48px; }
+.ba-section { padding: 72px 0 0; }
+.ba-intro { padding: 0 40px; max-width: 1520px; margin: 0 auto 48px; }
 .ba-wrap {
   position: relative;
   width: 100%;
@@ -218,7 +290,7 @@ section { position: relative; z-index: 1; }
 .ba-label-after  { right: 20px; background: var(--accent); color: #fff; }
 
 /* ── How it works ── */
-.how-section { padding: 100px 0; background: var(--surface); }
+.how-section { padding: 72px 0; background: var(--surface); }
 .steps {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
   margin-top: 56px; background: var(--border);
@@ -237,7 +309,7 @@ section { position: relative; z-index: 1; }
 .step-desc { font-size: 15px; color: var(--muted); line-height: 1.65; font-weight: 600; }
 
 /* ── Samples ── */
-.samples-section { padding: 100px 0; }
+.samples-section { padding: 72px 0; }
 .samples-grid {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
   margin-top: 52px;
@@ -292,7 +364,7 @@ section { position: relative; z-index: 1; }
 }
 
 /* ── Features ── */
-.features-section { padding: 100px 0; background: var(--surface); }
+.features-section { padding: 72px 0; background: var(--surface); }
 .features-grid {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
   margin-top: 56px; background: var(--border);
@@ -316,7 +388,7 @@ section { position: relative; z-index: 1; }
 .feature-desc { font-size: 14px; color: var(--muted); line-height: 1.65; font-weight: 600; }
 
 /* ── Pricing ── */
-.pricing-section { padding: 100px 0; }
+.pricing-section { padding: 72px 0; }
 .pricing-grid {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;
   margin-top: 56px;
@@ -363,7 +435,7 @@ section { position: relative; z-index: 1; }
 .btn-plan-primary:hover { background: var(--accent2); }
 
 /* ── FAQ ── */
-.faq-section { padding: 100px 0; background: var(--surface); }
+.faq-section { padding: 72px 0; background: var(--surface); }
 .faq-list { margin-top: 56px; display: flex; flex-direction: column; gap: 3px; }
 .faq-item {
   background: var(--bg); border-radius: 12px;
@@ -385,7 +457,7 @@ section { position: relative; z-index: 1; }
 .faq-a p { font-size: 15px; color: var(--muted); line-height: 1.7; font-weight: 600; }
 
 /* ── CTA ── */
-.cta-section { padding: 100px 0 120px; }
+.cta-section { padding: 72px 0 88px; }
 .cta-box {
   background: linear-gradient(135deg, #eeecfb 0%, #f7f7f9 100%);
   border: 1.5px solid var(--border);
@@ -449,7 +521,7 @@ footer {
 <body>
 
 <nav>
-  <a href="/" class="nav-logo">⬡ Vector<span>izer</span></a>
+  <a href="/" class="nav-logo">Sc<span>aylr</span></a>
   <ul class="nav-links">
     <li><a href="#how-it-works">How it works</a></li>
     <li><a href="#examples">Examples</a></li>
@@ -466,7 +538,7 @@ footer {
   <h1 class="hero-title">Turn any image into a<br><em>perfect vector</em></h1>
   <p class="hero-sub">Upload your illustration, logo, or AI artwork. Get a crisp, scalable SVG in seconds — ready for print, embroidery, or any size screen.</p>
   <div class="hero-actions">
-    <a href="/app" class="btn-primary">Vectorize for free</a>
+    <a href="/app" class="btn-primary">Try Scaylr free</a>
     <a href="#examples" class="btn-ghost">See examples</a>
   </div>
   <div class="hero-stats">
@@ -493,7 +565,7 @@ footer {
       <div class="ba-divider" id="ba-divider"></div>
       <div class="ba-handle" id="ba-handle">⟺</div>
       <div class="ba-label ba-label-before">Original</div>
-      <div class="ba-label ba-label-after">Vector</div>
+      <div class="ba-label ba-label-after">Scaylr</div>
     </div>
   </div>
 </section>
@@ -514,7 +586,7 @@ footer {
       </div>
       <div class="step">
         <div class="step-num">02</div>
-        <div class="step-icon">⬡</div>
+        <div class="step-icon">◈</div>
         <div class="step-title">Choose a style</div>
         <div class="step-desc">Pick from Flat Design, Artwork, Rich Detail, or Logo presets. Processing starts automatically in seconds.</div>
       </div>
@@ -699,14 +771,14 @@ footer {
 
 <!-- Footer -->
 <footer>
-  <div class="footer-logo">⬡ Vector<span>izer</span></div>
+  <div class="footer-logo">Sc<span>aylr</span></div>
   <div class="footer-links">
     <a href="#how-it-works">How it works</a>
     <a href="#pricing">Pricing</a>
     <a href="#faq">FAQ</a>
     <a href="/app">App</a>
   </div>
-  <div class="footer-copy">© 2026 Vectorizer. All rights reserved.</div>
+  <div class="footer-copy">© 2026 Scaylr. All rights reserved.</div>
 </footer>
 
 <script>

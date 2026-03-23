@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#f7f7f9"/>
+  <!-- Accent gradient blob -->
+  <ellipse cx="600" cy="200" rx="500" ry="280" fill="rgba(91,79,212,0.07)"/>
+  <!-- Logo mark -->
+  <rect x="80" y="72" width="56" height="56" rx="14" fill="#5b4fd4"/>
+  <text x="108" y="114" text-anchor="middle" font-family="'Arial Black', sans-serif" font-weight="900" font-size="34" fill="#ffffff">S</text>
+  <!-- Brand name -->
+  <text x="152" y="112" font-family="'Arial Black', sans-serif" font-weight="900" font-size="36" fill="#111120">Sc</text>
+  <text x="196" y="112" font-family="'Arial Black', sans-serif" font-weight="900" font-size="36" fill="#5b4fd4">aylr</text>
+  <!-- Main headline -->
+  <text x="80" y="230" font-family="'Arial Black', sans-serif" font-weight="900" font-size="72" fill="#111120">Turn any image</text>
+  <text x="80" y="318" font-family="'Arial Black', sans-serif" font-weight="900" font-size="72" fill="#5b4fd4">into a vector.</text>
+  <!-- Subline -->
+  <text x="80" y="392" font-family="Arial, sans-serif" font-weight="400" font-size="28" fill="#55557a">Upload PNG, JPG or AI art. Get SVG, PDF, PNG in seconds.</text>
+  <!-- Pills -->
+  <rect x="80" y="442" width="180" height="44" rx="22" fill="rgba(91,79,212,0.1)" stroke="#5b4fd4" stroke-width="1.5"/>
+  <text x="170" y="470" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#5b4fd4" font-weight="600">4 Style Presets</text>
+  <rect x="276" y="442" width="200" height="44" rx="22" fill="rgba(91,79,212,0.1)" stroke="#5b4fd4" stroke-width="1.5"/>
+  <text x="376" y="470" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#5b4fd4" font-weight="600">SVG · PDF · PNG · JPG</text>
+  <rect x="492" y="442" width="200" height="44" rx="22" fill="rgba(91,79,212,0.1)" stroke="#5b4fd4" stroke-width="1.5"/>
+  <text x="592" y="470" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#5b4fd4" font-weight="600">POD Ready Output</text>
+  <!-- URL -->
+  <text x="80" y="570" font-family="Arial, sans-serif" font-size="22" fill="#9999b8">scaylr.io</text>
+  <!-- Decorative right side -->
+  <rect x="860" y="80" width="260" height="200" rx="16" fill="#ffffff" stroke="#e2e2ea" stroke-width="2"/>
+  <rect x="880" y="100" width="220" height="12" rx="6" fill="#e2e2ea"/>
+  <rect x="880" y="124" width="180" height="12" rx="6" fill="#e2e2ea"/>
+  <rect x="880" y="148" width="200" height="12" rx="6" fill="#e2e2ea"/>
+  <rect x="880" y="196" width="96" height="36" rx="8" fill="#5b4fd4"/>
+  <text x="928" y="220" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#fff" font-weight="700">Vectorize</text>
+  <rect x="860" y="310" width="260" height="260" rx="16" fill="#ffffff" stroke="#e2e2ea" stroke-width="2"/>
+  <rect x="880" y="330" width="220" height="220" rx="8" fill="#f0f0f5"/>
+  <text x="990" y="452" text-anchor="middle" font-family="Arial, sans-serif" font-size="48" fill="#d0d0de">◈</text>
+</svg>

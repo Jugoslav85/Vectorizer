@@ -65,13 +65,42 @@ def eany(e):
 def landing():
     return send_from_directory(STATIC_DIR, "landing.html")
 
+@app.route("/sitemap.xml")
+def sitemap():
+    return send_from_directory(BASE_DIR, "sitemap.xml"), 200, {"Content-Type": "application/xml"}
+
+@app.route("/robots.txt")
+def robots():
+    return send_from_directory(BASE_DIR, "robots.txt"), 200, {"Content-Type": "text/plain"}
+
+@app.route("/favicon.svg")
+def favicon():
+    return send_from_directory(STATIC_DIR + "/images", "favicon.svg"), 200, {"Content-Type": "image/svg+xml"}
+
 @app.route("/remove-bg")
 def remove_bg_page():
     return send_from_directory(STATIC_DIR, "remove_bg.html")
 
 @app.route("/api/remove-bg", methods=["POST"])
 def api_remove_bg():
-    return jsonify({"error": "Background removal temporarily disabled"}), 503
+    if "file" not in request.files:
+        return jsonify({"error": "No file"}), 400
+    f = request.files["file"]
+    raw = f.read()
+    if len(raw) > MAX_FILE_BYTES:
+        return jsonify({"error": "File too large (max 20MB)"}), 400
+    try:
+        from rembg import remove, new_session
+        from io import BytesIO
+        import threading
+        # Lazy-load session
+        if not hasattr(api_remove_bg, '_session'):
+            api_remove_bg._session = new_session('birefnet-general')
+        result = remove(raw, session=api_remove_bg._session)
+        return Response(result, mimetype="image/png")
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/app")
 def index():

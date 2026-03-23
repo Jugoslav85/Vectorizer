@@ -3,7 +3,17 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Vectorizer</title>
+<meta name="description" content="Scaylr — Convert your images to scalable SVG vectors. Upload PNG, JPG or AI artwork and get print-ready SVG, PDF or PNG output."/>
+<meta name="robots" content="index, follow"/>
+<link rel="canonical" href="https://scaylr.io/app"/>
+<meta property="og:title" content="Scaylr App — Image to Vector Converter"/>
+<meta property="og:description" content="Convert PNG, JPG or AI artwork to crisp SVG vectors in seconds."/>
+<meta property="og:url" content="https://scaylr.io/app"/>
+<meta property="og:image" content="https://scaylr.io/static/images/og-image.png"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<link rel="icon" type="image/svg+xml" href="/static/images/favicon.svg"/>
+
+<title>Scaylr</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -492,7 +502,7 @@ body { height: calc(100vh); }
 
 <!-- App navigation -->
 <nav class="app-nav">
-  <a href="/" class="app-nav-logo">⬡ Vector<span>izer</span></a>
+  <a href="/" class="app-nav-logo">Sc<span>aylr</span></a>
   <a href="/" class="app-nav-back">← Home</a>
   <div class="app-nav-spacer"></div>
   <div class="app-nav-right">
@@ -507,7 +517,7 @@ body { height: calc(100vh); }
 <aside>
   <div class="sidebar-inner">
     <div class="header-row">
-      <h1>⬡ Vector<span>izer</span></h1>
+      <h1>Sc<span>aylr</span></h1>
     </div>
 
     <div class="sec-label">Output style</div>
@@ -601,7 +611,7 @@ body { height: calc(100vh); }
   <!-- Upload screen -->
   <div id="upload-screen">
     <div class="upload-hero">
-      <div class="upload-icon-wrap"><div class="upload-icon">⬡</div></div>
+      <div class="upload-icon-wrap"><div class="upload-icon">◈</div></div>
       <div class="upload-title">Turn any image into a crisp vector</div>
       <div class="upload-sub">Upload your illustration, logo, or AI artwork and get a scalable SVG in seconds.</div>
       <div class="upload-dropzone" id="dz">
@@ -633,7 +643,7 @@ body { height: calc(100vh); }
         </div>
       </div>
       <div class="panel">
-        <div class="panel-hdr"><span>Vector result</span><span id="svg-meta"></span></div>
+        <div class="panel-hdr"><span>Result</span><span id="svg-meta"></span></div>
         <div class="vp" id="vp-svg">
           <div class="vp-inner" id="inner-svg"></div>
           <div class="ph" id="ph-svg"><div class="ph-icon">✦</div>Result will appear here</div>
@@ -668,7 +678,7 @@ body { height: calc(100vh); }
         </div>
         <div class="loader-a-step" id="la-trace">
           <div class="loader-a-label">
-            <span class="loader-a-name">Vectorizing</span>
+            <span class="loader-a-name">Converting</span>
             <span class="loader-a-pct" id="la-trace-pct">0%</span>
           </div>
           <div class="loader-a-track"><div class="loader-a-fill" id="la-trace-fill"></div></div>
@@ -942,7 +952,7 @@ function resetLoaderA(){
 
 // ── Loader B animation ─────────────────────────────────────
 let lbInterval=null;
-const LB_STAGES=['Uploading…','Preparing image…','Vectorizing…','Rendering…'];
+const LB_STAGES=['Uploading…','Preparing image…','Converting…','Rendering…'];
 const LB_TARGETS=[15,35,90,100];
 let lbCurrentTarget=0,lbCurrentVal=0,lbStageIdx=0;
 function resetLoaderB(){
