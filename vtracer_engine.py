@@ -22,15 +22,15 @@ MIN_PIXELS   = 1_500_000
 TARGET_SMALL = 2_000_000
 
 # Lazy-load rembg session to avoid import cost on startup
-_rembg_session = None
+# _rembg_session = None
 
-def _get_rembg_session():
-    global _rembg_session
-    if _rembg_session is None:
-        from rembg import new_session
-        _rembg_session = new_session('birefnet-general')
-        print('[engine] rembg session loaded', flush=True)
-    return _rembg_session
+# def _get_rembg_session():
+#     global _rembg_session
+#     if _rembg_session is None:
+#         from rembg import new_session
+#        _rembg_session = new_session('birefnet-general')
+#         print('[engine] rembg session loaded', flush=True)
+#     return _rembg_session
 
 
 def _resize(img: Image.Image) -> Image.Image:
