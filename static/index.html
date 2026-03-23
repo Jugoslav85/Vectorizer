@@ -515,6 +515,7 @@ body { height: calc(100vh); }
    ══════════════════════════════════════════════ */
 /* ── Hide mobile-only elements on desktop ── */
 #mobile-presets     { display: none; }
+#mobile-finetune    { display: none; }
 #mobile-convert-bar { display: none; }
 #mobile-status      { display: none; }
 #mobile-result-modal{ display: none; }
@@ -537,8 +538,25 @@ body { height: calc(100vh); }
   .theme-toggle { padding: 6px 10px; font-size: 12px; }
 
   /* ── Outer layout ── */
-  body   { overflow: hidden; height: 100dvh; }
-  main   { flex-direction: column; height: calc(100dvh - 52px); overflow: hidden; }
+  body   { overflow: hidden; height: 100svh; }
+  main   {
+    flex-direction: column;
+    height: calc(100svh - 52px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Landscape: allow more compact layout */
+  @media (max-height: 500px) {
+    #upload-screen { justify-content: flex-start; padding: 10px 14px; }
+    .upload-dropzone { min-height: 80px; padding: 14px 16px; }
+    #mobile-presets { padding: 8px 14px; gap: 6px; }
+    .mobile-preset-btn { padding: 7px 8px; font-size: 12px; }
+    #mobile-convert-bar { padding: 8px 14px; }
+    #mobile-btn-run { padding: 9px; font-size: 13px; }
+    #mobile-status { padding: 5px 14px; }
+  }
 
   /* ── Show mobile-only elements ── */
   #mobile-presets {
@@ -564,6 +582,10 @@ body { height: calc(100vh); }
     align-items: center;
   }
 
+  #mobile-finetune {
+    display: flex !important;
+  }
+
   #mobile-status {
     display: flex !important;
     padding: 7px 14px;
@@ -581,18 +603,52 @@ body { height: calc(100vh); }
   #upload-screen {
     flex: 1;
     flex-direction: column;
-    justify-content: center;
-    padding: 24px 16px;
-    overflow: hidden;
+    justify-content: flex-start;
+    padding: 16px;
+    overflow-y: auto;
+    gap: 0;
   }
-  .upload-hero { display: none; }
+  /* Show hero but compact it */
+  .upload-hero {
+    display: flex !important;
+    width: 100%;
+    max-width: 100%;
+    gap: 12px;
+    align-items: stretch;
+  }
+  .upload-icon-wrap { display: none; }
+  .upload-title { display: none; }
+  .upload-sub { display: none; }
+  .upload-formats { font-size: 10px; margin-top: 8px; }
   .upload-dropzone {
     margin: 0;
     width: 100%;
     max-width: 100%;
-    min-height: 160px;
+    min-height: 120px;
     border-radius: 14px;
-    padding: 28px 20px;
+    padding: 22px 16px;
+    flex: 1;
+  }
+  .upload-dropzone-label { font-size: 15px; }
+  .upload-dropzone-sub { font-size: 12px; }
+
+  /* Mobile presets — 2x2 grid instead of horizontal scroll */
+  #mobile-presets {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    overflow: visible;
+  }
+  .mobile-preset-btn {
+    border-radius: 10px;
+    padding: 10px 8px;
+    font-size: 13px;
+    text-align: center;
+    white-space: normal;
   }
 
   /* ── Preview screen ── */
@@ -615,6 +671,60 @@ body { height: calc(100vh); }
   #mobile-result-modal.visible { display: flex !important; }
 }
 
+
+
+/* ── Mobile fine-tune ── */
+#mobile-finetune {
+  display: none;
+  flex-direction: column;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+#mobile-finetune-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: var(--font-mono);
+  color: var(--muted);
+  font-weight: 500;
+  width: 100%;
+  text-align: left;
+}
+#mobile-finetune-panel {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 16px 14px;
+}
+#mobile-finetune-panel.open { display: flex; }
+.mft-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 30px;
+  align-items: center;
+  gap: 10px;
+}
+.mft-row label {
+  font-size: 12px;
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-weight: 600;
+}
+.mft-row input[type=range] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+.mft-row span {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--dim);
+  text-align: right;
+}
 
 /* ── Mobile preset pills ── */
 .mobile-preset-btn {
@@ -858,6 +968,40 @@ body { height: calc(100vh); }
     <button class="mobile-preset-btn" onclick="mobilePreset('photo')">Rich Detail</button>
     <button class="mobile-preset-btn" onclick="mobilePreset('logo')">Logo & Clipart</button>
   </div>
+  <!-- Mobile fine-tune panel (collapsible) -->
+  <div id="mobile-finetune">
+    <button id="mobile-finetune-toggle" onclick="toggleMobileFinetune()">
+      <span>⚙ Fine-tune settings</span>
+      <span id="mobile-finetune-arrow">▼</span>
+    </button>
+    <div id="mobile-finetune-panel">
+      <div class="mft-row">
+        <label>Smooth edges</label>
+        <input type="range" id="m-blur-radius" min="0" max="2" step="0.1" value="0.8"
+          oninput="syncSlider('blur-radius','m-blur-radius',this.value,'v-br')"/>
+        <span id="m-v-br">0.8</span>
+      </div>
+      <div class="mft-row">
+        <label>Color depth</label>
+        <input type="range" id="m-color-precision" min="2" max="8" step="1" value="8"
+          oninput="syncSlider('color-precision','m-color-precision',this.value,'v-cp')"/>
+        <span id="m-v-cp">8</span>
+      </div>
+      <div class="mft-row">
+        <label>Shape separation</label>
+        <input type="range" id="m-layer-difference" min="1" max="32" step="1" value="1"
+          oninput="syncSlider('layer-difference','m-layer-difference',this.value,'v-ld')"/>
+        <span id="m-v-ld">1</span>
+      </div>
+      <div class="mft-row">
+        <label>Clean up noise</label>
+        <input type="range" id="m-filter-speckle" min="1" max="32" step="1" value="6"
+          oninput="syncSlider('filter-speckle','m-filter-speckle',this.value,'v-fs')"/>
+        <span id="m-v-fs">6</span>
+      </div>
+    </div>
+  </div>
+
   <!-- Mobile convert + status bar -->
   <div id="mobile-convert-bar">
     <button id="mobile-btn-run" disabled onclick="mobileRunVectorize()">Convert →</button>
@@ -889,7 +1033,7 @@ body { height: calc(100vh); }
       <div class="upload-dropzone" id="dz">
         <input type="file" id="file-input" accept="image/*"/>
         <div class="upload-dropzone-label">Drop your image here</div>
-        <div class="upload-dropzone-sub">or <span>browse files</span> · paste with Cmd+V</div>
+        <div class="upload-dropzone-sub">or <span>browse files</span> · tap to choose</div>
       </div>
       <div class="upload-formats">PNG · JPG · WEBP · BMP · max 20MB</div>
     </div>
@@ -1227,6 +1371,45 @@ function closeMobileResult() {
   $('mobile-btn-run').textContent = 'Convert again →';
   $('mobile-btn-run').disabled = false;
   $('mobile-btn-run').style.display = 'block';
+}
+
+// ── Mobile fine-tune toggle ──
+function toggleMobileFinetune() {
+  const panel = $('mobile-finetune-panel');
+  const arrow = $('mobile-finetune-arrow');
+  const isOpen = panel.classList.contains('open');
+  panel.classList.toggle('open', !isOpen);
+  arrow.textContent = isOpen ? '▼' : '▲';
+}
+
+// ── Sync mobile sliders with desktop sliders ──
+function syncSlider(desktopId, mobileId, val, valId) {
+  // Update desktop slider
+  const desktop = $(desktopId);
+  if (desktop) desktop.value = val;
+  // Update display values
+  const v = $(valId);
+  if (v) v.textContent = val;
+  const mv = $('m-' + valId);
+  if (mv) mv.textContent = val;
+  // Mark settings changed
+  markSettingsChanged();
+}
+
+// Sync desktop → mobile when desktop sliders change
+function syncDesktopToMobile() {
+  const pairs = [
+    ['blur-radius', 'm-blur-radius', 'v-br'],
+    ['color-precision', 'm-color-precision', 'v-cp'],
+    ['layer-difference', 'm-layer-difference', 'v-ld'],
+    ['filter-speckle', 'm-filter-speckle', 'v-fs'],
+  ];
+  pairs.forEach(([dId, mId, vId]) => {
+    const d = $(dId), m = $(mId);
+    if (d && m) m.value = d.value;
+    const mv = $('m-' + vId);
+    if (mv && d) mv.textContent = d.value;
+  });
 }
 
 // ── Mobile new image ──
