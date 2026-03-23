@@ -507,6 +507,8 @@ footer {
 @media (max-width: 900px) {
   nav { padding: 0 24px; }
   .nav-links { display: none; }
+  .hamburger { display: flex !important; }
+  .mobile-menu { display: flex; }
   .section-inner { padding: 0 24px; }
   .ba-intro { padding: 0 24px; }
   .steps, .features-grid { grid-template-columns: 1fr; }
@@ -517,6 +519,63 @@ footer {
   .ba-wrap { aspect-ratio: 1/1; }
   .ba-handle { width: 40px; height: 40px; font-size: 14px; }
 }
+
+/* ── Hamburger nav ── */
+.hamburger {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  margin-left: auto;
+}
+.hamburger span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: var(--text);
+  border-radius: 2px;
+  transition: all .2s;
+}
+.hamburger.open span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
+.hamburger.open span:nth-child(2) { opacity: 0; }
+.hamburger.open span:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
+
+/* Mobile menu overlay */
+.mobile-menu {
+  display: none;
+  position: fixed;
+  inset: 64px 0 0 0;
+  background: var(--surface);
+  z-index: 99;
+  flex-direction: column;
+  padding: 24px;
+  border-top: 1px solid var(--border);
+  gap: 4px;
+}
+.mobile-menu a {
+  padding: 14px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+  transition: color .15s;
+}
+.mobile-menu a:last-child { border-bottom: none; }
+.mobile-menu a:hover { color: var(--accent); }
+.mobile-menu .mobile-cta {
+  margin-top: 16px;
+  background: var(--accent);
+  color: #fff !important;
+  padding: 16px 24px;
+  border-radius: 10px;
+  text-align: center;
+  font-size: 16px;
+}
+
 </style>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What file types can I upload?","acceptedAnswer":{"@type":"Answer","text":"You can upload PNG, JPG, WebP and HEIC files up to 20MB."}},{"@type":"Question","name":"What formats can I export in?","acceptedAnswer":{"@type":"Answer","text":"Export as SVG, PDF, PNG or JPG. SVG and PDF are recommended for print-on-demand."}},{"@type":"Question","name":"Will it work with AI-generated images?","acceptedAnswer":{"@type":"Answer","text":"Yes — Midjourney, DALL-E, Stable Diffusion and Firefly outputs all work well."}},{"@type":"Question","name":"Can I use the output commercially?","acceptedAnswer":{"@type":"Answer","text":"Yes. The output belongs to you for use on Printful, Gelato, Printify and other POD platforms."}},{"@type":"Question","name":"How long does processing take?","acceptedAnswer":{"@type":"Answer","text":"Most images convert in 5-15 seconds. Complex images may take up to 30 seconds."}}]}
@@ -536,7 +595,19 @@ footer {
     <li><a href="#faq">FAQ</a></li>
     <li><a href="/app" class="nav-cta">Try free →</a></li>
   </ul>
+  <button class="hamburger" id="hamburger" onclick="toggleMenu()">
+    <span></span><span></span><span></span>
+  </button>
 </nav>
+
+<!-- Mobile menu -->
+<div class="mobile-menu" id="mobile-menu">
+  <a href="#how-it-works" onclick="closeMenu()">How it works</a>
+  <a href="#examples" onclick="closeMenu()">Examples</a>
+  <a href="#pricing" onclick="closeMenu()">Pricing</a>
+  <a href="#faq" onclick="closeMenu()">FAQ</a>
+  <a href="/app" class="mobile-cta">Try Scaylr free →</a>
+</div>
 
 <!-- Hero -->
 <section class="hero">
@@ -866,6 +937,23 @@ async function loadSamples() {
   }
 }
 window.addEventListener('DOMContentLoaded', loadSamples);
+
+// ── Hamburger menu ──
+function toggleMenu() {
+  const menu = document.getElementById('mobile-menu');
+  const btn = document.getElementById('hamburger');
+  const isOpen = menu.style.display === 'flex';
+  menu.style.display = isOpen ? 'none' : 'flex';
+  btn.classList.toggle('open', !isOpen);
+  document.body.style.overflow = isOpen ? '' : 'hidden';
+}
+function closeMenu() {
+  const menu = document.getElementById('mobile-menu');
+  const btn = document.getElementById('hamburger');
+  menu.style.display = 'none';
+  btn.classList.remove('open');
+  document.body.style.overflow = '';
+}
 
 // ── Nav scroll effect ──
 window.addEventListener('scroll', () => {

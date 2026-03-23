@@ -509,13 +509,299 @@ body { height: calc(100vh); }
   display: block;
 }
 
+
+/* ══════════════════════════════════════════════
+   MOBILE LAYOUT  (≤ 768px)
+   ══════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* Hide desktop elements on mobile */
+  .app-nav-back { display: none; }
+  .toggle-btn   { display: none; }
+  aside         { display: none; }  /* desktop sidebar hidden */
+
+  /* Nav compact */
+  .app-nav { padding: 0 12px 0 0; }
+  .app-nav-logo { padding: 0 14px; font-size: 15px; }
+  .app-nav-right { gap: 4px; }
+  .theme-toggle { padding: 6px 10px; font-size: 12px; }
+
+  /* Main fills screen */
+  main { flex-direction: column; padding-top: 52px; }
+
+  /* ── Mobile app panel ── */
+  #mobile-app {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* Upload screen — mobile */
+  #upload-screen {
+    flex: 1;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 0;
+    gap: 0;
+  }
+  .upload-hero { display: none; }
+  .upload-dropzone {
+    margin: 0;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-top: none;
+    padding: 20px 16px;
+    min-height: 120px;
+  }
+
+  /* Mobile presets bar — shown below upload on mobile */
+  #mobile-presets {
+    display: flex !important;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-shrink: 0;
+  }
+  #mobile-presets::-webkit-scrollbar { display: none; }
+  .mobile-preset-btn {
+    flex-shrink: 0;
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border2);
+    background: var(--surface2);
+    color: var(--muted);
+    font-size: 13px;
+    font-family: var(--font-ui);
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all .15s;
+  }
+  .mobile-preset-btn.active {
+    background: var(--accent-bg);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Mobile convert button */
+  #mobile-convert-bar {
+    display: flex !important;
+    padding: 12px 16px;
+    gap: 10px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    align-items: center;
+  }
+  #mobile-btn-run {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 15px;
+    font-family: var(--font-ui);
+    font-weight: 800;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  #mobile-btn-run:disabled { opacity: .35; cursor: not-allowed; }
+  #mobile-btn-run:not(:disabled):hover { background: var(--accent2); }
+  #mobile-btn-cancel {
+    display: none;
+    padding: 12px 16px;
+    border: 1.5px solid var(--border2);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 14px;
+    font-family: var(--font-ui);
+    font-weight: 700;
+    cursor: pointer;
+  }
+  #mobile-status {
+    flex-shrink: 0;
+    padding: 10px 16px;
+    font-size: 12px;
+    font-family: var(--font-mono);
+    color: var(--muted);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Preview screen — mobile (full width single panel) */
+  #preview-screen { flex: 1; }
+  .preview-panel { flex: 1; }
+  #vp-preview { min-height: 300px; }
+
+  /* Results screen — hide on mobile (we use modal instead) */
+  #results-screen { display: none !important; }
+
+  /* ── Mobile result modal ── */
+  #mobile-result-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: var(--bg);
+    flex-direction: column;
+  }
+  #mobile-result-modal.visible { display: flex; }
+  .mrm-header {
+    height: 52px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .mrm-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text);
+    flex: 1;
+  }
+  .mrm-close {
+    background: none;
+    border: none;
+    font-size: 22px;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+  }
+  .mrm-close:hover { color: var(--text); }
+  .mrm-viewport {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    background-color: var(--bg);
+    background-image:
+      linear-gradient(45deg, rgba(0,0,80,.04) 25%, transparent 25%),
+      linear-gradient(-45deg, rgba(0,0,80,.04) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, rgba(0,0,80,.04) 75%),
+      linear-gradient(-45deg, transparent 75%, rgba(0,0,80,.04) 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+    touch-action: none;
+  }
+  .mrm-inner {
+    position: absolute;
+    top: 0; left: 0;
+    transform-origin: 0 0;
+  }
+  .mrm-zoom-bar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    align-items: center;
+  }
+  .mrm-zoom-btn {
+    padding: 7px 14px;
+    border: 1.5px solid var(--border2);
+    border-radius: 8px;
+    background: var(--surface2);
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 700;
+    font-family: var(--font-ui);
+    cursor: pointer;
+  }
+  .mrm-zoom-label {
+    font-size: 13px;
+    font-family: var(--font-mono);
+    color: var(--muted);
+    min-width: 45px;
+    text-align: center;
+  }
+  .mrm-spacer { flex: 1; }
+  .mrm-meta {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--dim);
+  }
+  .mrm-actions {
+    padding: 14px 16px;
+    background: var(--surface);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .mrm-btn-dl {
+    padding: 13px;
+    border: 1.5px solid var(--border2);
+    border-radius: 10px;
+    background: var(--surface2);
+    color: var(--text);
+    font-size: 14px;
+    font-family: var(--font-ui);
+    font-weight: 800;
+    cursor: pointer;
+    transition: all .15s;
+    text-align: center;
+  }
+  .mrm-btn-dl:hover { border-color: var(--accent); color: var(--accent); }
+  .mrm-btn-dl.primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+    grid-column: 1 / -1;
+  }
+  .mrm-btn-dl.primary:hover { background: var(--accent2); }
+  .mrm-btn-copy {
+    grid-column: 1 / -1;
+    padding: 10px;
+    border: 1.5px solid var(--border);
+    border-radius: 9px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    font-family: var(--font-ui);
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .mrm-btn-copy:hover { border-color: var(--accent); color: var(--accent); }
+  .mrm-btn-new {
+    grid-column: 1 / -1;
+    padding: 10px;
+    border: none;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--dim);
+    font-size: 13px;
+    font-family: var(--font-mono);
+    cursor: pointer;
+  }
+}
+
+/* Hide mobile-only elements on desktop */
+#mobile-presets   { display: none; }
+#mobile-convert-bar { display: none; }
+#mobile-status    { display: none; }
+#mobile-result-modal { display: none; }
+
 </style>
 </head>
 <body>
 
-
-<!-- Mobile settings toggle -->
-<button class="mobile-settings-btn" id="mobile-settings-btn" onclick="toggleMobileSettings()" title="Settings">⚙</button>
 
 <!-- App navigation -->
 <nav class="app-nav">
@@ -530,6 +816,60 @@ body { height: calc(100vh); }
 </nav>
 
 <button class="toggle-btn" id="toggle-btn">◀</button>
+
+<!-- ═══════════════════════════════════════
+     MOBILE-ONLY UI ELEMENTS
+     ═══════════════════════════════════════ -->
+
+<!-- Mobile presets bar (horizontal scroll) -->
+<div id="mobile-presets">
+  <button class="mobile-preset-btn active" onclick="mobilePreset('flat')">Flat Design</button>
+  <button class="mobile-preset-btn" onclick="mobilePreset('illustration')">Artwork</button>
+  <button class="mobile-preset-btn" onclick="mobilePreset('photo')">Rich Detail</button>
+  <button class="mobile-preset-btn" onclick="mobilePreset('logo')">Logo & Clipart</button>
+</div>
+
+<!-- Mobile convert bar -->
+<div id="mobile-convert-bar">
+  <button id="mobile-btn-run" disabled onclick="mobileRunVectorize()">Convert →</button>
+  <button id="mobile-btn-cancel" onclick="cancelConvert()">✕</button>
+</div>
+
+<!-- Mobile status -->
+<div id="mobile-status">
+  <div class="status-dot" id="mobile-status-dot"></div>
+  <span id="mobile-status-text">Upload an image to get started</span>
+</div>
+
+<!-- Mobile result modal -->
+<div id="mobile-result-modal">
+  <div class="mrm-header">
+    <div class="mrm-title">Result</div>
+    <button class="mrm-close" onclick="closeMobileResult()">✕</button>
+  </div>
+  <div class="mrm-zoom-bar">
+    <button class="mrm-zoom-btn" onclick="mrmZoom(-0.25)">−</button>
+    <span class="mrm-zoom-label" id="mrm-zoom-label">100%</span>
+    <button class="mrm-zoom-btn" onclick="mrmZoom(0.25)">+</button>
+    <button class="mrm-zoom-btn" onclick="mrmFit()">Fit</button>
+    <div class="mrm-spacer"></div>
+    <span class="mrm-meta" id="mrm-meta"></span>
+  </div>
+  <div class="mrm-viewport" id="mrm-viewport">
+    <div class="mrm-inner" id="mrm-inner"></div>
+  </div>
+  <div class="mrm-actions">
+    <button class="mrm-btn-dl primary" onclick="exportAs('svg')">↓ Download SVG</button>
+    <button class="mrm-btn-dl" onclick="exportAs('pdf')">PDF</button>
+    <button class="mrm-btn-dl" onclick="exportAs('png')">PNG</button>
+    <button class="mrm-btn-dl" onclick="exportAs('jpg')">JPG</button>
+    <button class="mrm-btn-copy" onclick="copySvgCode()">⎘ Copy SVG code</button>
+    <button class="mrm-btn-new" onclick="mobileNewImage()">+ Convert a new image</button>
+  </div>
+</div>
+
+<!-- END MOBILE-ONLY -->
+
 
 <aside>
   <div class="sidebar-inner">
@@ -824,21 +1164,165 @@ function saveSettingsSnapshot() {
   $('btn-reprocess').disabled = true;
 }
 
-// ── Mobile sidebar toggle ────────────────────────────────
-function toggleMobileSettings() {
-  const aside = document.querySelector('aside');
-  aside.classList.toggle('mobile-open');
+// ══════════════════════════════════════════════════════
+// MOBILE LOGIC
+// ══════════════════════════════════════════════════════
+const isMobile = () => window.innerWidth <= 768;
+
+// ── Mobile preset selection ──
+function mobilePreset(name) {
+  applyPreset(name); // reuse desktop function
+  document.querySelectorAll('.mobile-preset-btn').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('onclick').includes(name));
+  });
 }
-// Close sidebar when clicking outside on mobile
-document.addEventListener('click', e => {
-  const aside = document.querySelector('aside');
-  const btn = $('mobile-settings-btn');
-  if (aside && aside.classList.contains('mobile-open')) {
-    if (!aside.contains(e.target) && e.target !== btn) {
-      aside.classList.remove('mobile-open');
-    }
+
+// ── Mobile status sync ──
+function mobileSetStatus(msg, state='') {
+  if (!isMobile()) return;
+  const dot = $('mobile-status-dot');
+  const txt = $('mobile-status-text');
+  if (dot) { dot.className = 'status-dot' + (state ? ' '+state : ''); }
+  if (txt) { txt.textContent = msg; }
+}
+
+// ── Mobile convert button ──
+function mobileRunVectorize() {
+  $('mobile-btn-run').style.display = 'none';
+  $('mobile-btn-cancel').style.display = 'block';
+  runVectorize(); // reuse desktop function
+}
+
+// ── Mobile enable/disable run button ──
+function mobileSyncRunBtn(enabled) {
+  if (!isMobile()) return;
+  const btn = $('mobile-btn-run');
+  if (btn) {
+    btn.disabled = !enabled;
+    btn.style.display = 'block';
+    $('mobile-btn-cancel').style.display = 'none';
   }
-});
+}
+
+// ── Open mobile result modal ──
+function openMobileResult(svgText, paths, elapsed) {
+  if (!isMobile()) return;
+  const modal = $('mobile-result-modal');
+  const inner = $('mrm-inner');
+  modal.classList.add('visible');
+  // Render SVG
+  inner.innerHTML = svgText;
+  const svgEl = inner.querySelector('svg');
+  if (svgEl) {
+    svgEl.style.display = 'block';
+    const vw = $('mrm-viewport').clientWidth;
+    const vh = $('mrm-viewport').clientHeight;
+    const sw = parseFloat(svgEl.getAttribute('width')) || vw;
+    const sh = parseFloat(svgEl.getAttribute('height')) || vh;
+    mrmZoomVal = Math.min(vw/sw, vh/sh) * 0.95;
+    mrmPanX = (vw - sw*mrmZoomVal)/2;
+    mrmPanY = (vh - sh*mrmZoomVal)/2;
+    mrmApplyTransform();
+  }
+  $('mrm-meta').textContent = paths + ' paths · ' + elapsed + 's';
+  $('mrm-zoom-label').textContent = Math.round(mrmZoomVal*100)+'%';
+}
+
+// ── Mobile result modal zoom ──
+let mrmZoomVal = 1, mrmPanX = 0, mrmPanY = 0;
+let mrmLastDist = null, mrmDragging = false, mrmLastX = 0, mrmLastY = 0;
+
+function mrmApplyTransform() {
+  $('mrm-inner').style.transform = `translate(${mrmPanX}px,${mrmPanY}px) scale(${mrmZoomVal})`;
+  $('mrm-zoom-label').textContent = Math.round(mrmZoomVal*100)+'%';
+}
+
+function mrmZoom(delta) {
+  const vp = $('mrm-viewport');
+  const cx = vp.clientWidth/2, cy = vp.clientHeight/2;
+  const newZ = Math.max(0.1, Math.min(10, mrmZoomVal + delta));
+  mrmPanX = cx - (cx - mrmPanX) * (newZ/mrmZoomVal);
+  mrmPanY = cy - (cy - mrmPanY) * (newZ/mrmZoomVal);
+  mrmZoomVal = newZ;
+  mrmApplyTransform();
+}
+
+function mrmFit() {
+  const vp = $('mrm-viewport');
+  const inner = $('mrm-inner');
+  const svgEl = inner.querySelector('svg');
+  if (!svgEl) return;
+  const sw = parseFloat(svgEl.getAttribute('width')) || vp.clientWidth;
+  const sh = parseFloat(svgEl.getAttribute('height')) || vp.clientHeight;
+  mrmZoomVal = Math.min(vp.clientWidth/sw, vp.clientHeight/sh) * 0.95;
+  mrmPanX = (vp.clientWidth - sw*mrmZoomVal)/2;
+  mrmPanY = (vp.clientHeight - sh*mrmZoomVal)/2;
+  mrmApplyTransform();
+}
+
+// Touch pan on modal viewport
+const mrmVp = document.getElementById ? (() => {
+  const el = document.getElementById('mrm-viewport');
+  if (!el) return null;
+  el.addEventListener('touchstart', e => {
+    if (e.touches.length === 1) {
+      mrmDragging = true;
+      mrmLastX = e.touches[0].clientX;
+      mrmLastY = e.touches[0].clientY;
+      mrmLastDist = null;
+    } else if (e.touches.length === 2) {
+      mrmDragging = false;
+      mrmLastDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+    }
+    e.preventDefault();
+  }, { passive: false });
+  el.addEventListener('touchmove', e => {
+    if (e.touches.length === 1 && mrmDragging) {
+      mrmPanX += e.touches[0].clientX - mrmLastX;
+      mrmPanY += e.touches[0].clientY - mrmLastY;
+      mrmLastX = e.touches[0].clientX;
+      mrmLastY = e.touches[0].clientY;
+      mrmApplyTransform();
+    } else if (e.touches.length === 2 && mrmLastDist) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const scale = dist / mrmLastDist;
+      const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      mrmPanX = cx - (cx - mrmPanX) * scale;
+      mrmPanY = cy - (cy - mrmPanY) * scale;
+      mrmZoomVal = Math.max(0.1, Math.min(10, mrmZoomVal * scale));
+      mrmLastDist = dist;
+      mrmApplyTransform();
+    }
+    e.preventDefault();
+  }, { passive: false });
+  el.addEventListener('touchend', () => { mrmDragging = false; mrmLastDist = null; });
+  return el;
+})() : null;
+
+// ── Close mobile result modal ──
+function closeMobileResult() {
+  $('mobile-result-modal').classList.remove('visible');
+  // Show preview screen again
+  if (imgW) showPreviewScreen();
+  mobileSyncRunBtn(false);
+  // Reset convert button — show reprocess
+  $('mobile-btn-run').textContent = 'Convert again →';
+  $('mobile-btn-run').disabled = false;
+  $('mobile-btn-run').style.display = 'block';
+}
+
+// ── Mobile new image ──
+function mobileNewImage() {
+  $('mobile-result-modal').classList.remove('visible');
+  resetToUpload();
+}
 
 // ── Pan & Zoom ─────────────────────────────────────────────
 let zoom=1,panX=0,panY=0,imgW=0,imgH=0;
@@ -885,7 +1369,11 @@ document.addEventListener('paste',e=>{
 
 let currentFile=null, currentSvgText=null, currentSvgUrl=null, currentJobId=null, currentSrc=null;
 function fmt(b){return b>1048576?(b/1048576).toFixed(1)+'MB':Math.round(b/1024)+'KB';}
-function setStatus(msg,state=''){$('status').textContent=msg;$('status-dot').className='status-dot'+(state?' '+state:'');}
+function setStatus(msg,state=''){
+  $('status').textContent=msg;
+  $('status-dot').className='status-dot'+(state?' '+state:'');
+  mobileSetStatus(msg,state);
+}
 
 function load(f) {
   if(f.size>20*1024*1024){setStatus('File too large (max 20MB)','error');return;}
@@ -908,6 +1396,7 @@ function load(f) {
       setTimeout(fitPreview, 100);
       setStatus('Choose a style and click Convert', 'ready');
       $('btn-run').disabled = false;
+      mobileSyncRunBtn(true);
     };
     img.src=e.target.result;
   };
@@ -959,6 +1448,14 @@ function resetToUpload(){
   setStatus('Upload an image to get started','');
   showUploadScreen();
   fi.value='';
+  // Reset mobile state
+  if (isMobile()) {
+    $('mobile-btn-run').disabled = true;
+    $('mobile-btn-run').textContent = 'Convert →';
+    $('mobile-btn-run').style.display = 'block';
+    $('mobile-btn-cancel').style.display = 'none';
+    $('mobile-result-modal').classList.remove('visible');
+  }
 }
 
 function reprocess(){
