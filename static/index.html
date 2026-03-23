@@ -541,15 +541,6 @@ body { height: calc(100vh); }
       <h1>⬡ Vector<span>izer</span></h1>
     </div>
 
-    <!-- Remove background toggle -->
-    <div class="rembg-toggle" id="rembg-toggle" onclick="toggleRemoveBg()">
-      <div class="rembg-check" id="rembg-check"></div>
-      <div class="rembg-text">
-        <div class="rembg-label">Remove background</div>
-        <div class="rembg-desc">Cuts out the subject before vectorizing</div>
-      </div>
-    </div>
-
     <div class="sec-label">Output style</div>
     <div class="presets-grid">
       <div class="has-tooltip">
@@ -831,15 +822,6 @@ function saveSettingsSnapshot() {
   $('btn-reprocess').disabled = true;
 }
 
-// ── Remove background ────────────────────────────────────
-let removeBg = false;
-function toggleRemoveBg() {
-  removeBg = !removeBg;
-  $('rembg-toggle').classList.toggle('active', removeBg);
-  $('rembg-check').textContent = removeBg ? '✓' : '';
-  markSettingsChanged();
-}
-
 // ── Pan & Zoom ─────────────────────────────────────────────
 let zoom=1,panX=0,panY=0,imgW=0,imgH=0;
 function applyTransform(){
@@ -1065,7 +1047,6 @@ async function runVectorize(){
 
   const fd=new FormData();
   fd.append('file',currentFile);
-  fd.append('remove_bg', removeBg ? '1' : '0');
   fd.append('blur_radius',    $('blur-radius').value);
   fd.append('color_precision',$('color-precision').value);
   fd.append('layer_difference',$('layer-difference').value);
