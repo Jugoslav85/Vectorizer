@@ -43,36 +43,37 @@ def api_vectorize():
     t0 = time.time()
     svg = vectorize(
         raw,
-        posterize_bits    = gi("posterize_bits",    7),
-        unsharp_radius    = gf("unsharp_radius",    0.5),
-        unsharp_percent   = gi("unsharp_percent",   90),
-        unsharp_threshold = gi("unsharp_threshold", 4),
+        # Hardcoded preprocessing defaults
+        posterize_bits    = 7,
+        unsharp_radius    = 0.5,
+        unsharp_percent   = 90,
+        unsharp_threshold = 4,
+        # Hardcoded vtracer defaults
         colormode        = "color",
         hierarchical     = "stacked",
         mode             = "spline",
-        filter_speckle   = gi("filter_speckle",   4),
+        corner_threshold = 1,
+        length_threshold = 3.5,
+        max_iterations   = 1,
+        splice_threshold = 1,
+        path_precision   = 1,
+        # User-controlled
+        filter_speckle   = gi("filter_speckle",   6),
         color_precision  = gi("color_precision",  8),
-        layer_difference = gi("layer_difference", 2),
-        corner_threshold = gi("corner_threshold", 60),
-        length_threshold = gf("length_threshold", 4.0),
-        max_iterations   = gi("max_iterations",   1),
-        splice_threshold = gi("splice_threshold", 45),
-        path_precision   = gi("path_precision",   1),
+        layer_difference = gi("layer_difference", 1),
+        blur_radius      = gf("blur_radius",      0.8),
     )
     elapsed = round(time.time() - t0, 2)
     paths   = svg.count("<path")
 
-    # Save to disk for PDF export endpoint only
     job_id   = uuid.uuid4().hex[:12]
     out_path = OUTPUT_DIR / f"{job_id}.svg"
     out_path.write_text(svg, encoding="utf-8")
 
-    # Keep only last 20 outputs on disk
     svgs = sorted(OUTPUT_DIR.glob("*.svg"), key=lambda p: p.stat().st_mtime)
     for old in svgs[:-20]:
         old.unlink(missing_ok=True)
 
-    # Return SVG inline — eliminates the second /api/preview fetch
     return jsonify({
         "job_id":   job_id,
         "elapsed":  elapsed,
