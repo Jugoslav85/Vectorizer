@@ -14,6 +14,15 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 
 app = Flask(__name__, static_folder=str(STATIC_DIR))
 app.secret_key = os.environ.get("SECRET_KEY", "scaylr-dev-key-change-in-prod")
+app.config["WTF_CSRF_ENABLED"] = False  # API-only, CSRF handled via rate limiting + validation
+
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=[],
+    storage_uri="memory://"
+)
+csrf = CSRFProtect(app)
 
 ALLOWED        = {".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif"}
 MAX_FILE_BYTES = 20 * 1024 * 1024  # 20MB
