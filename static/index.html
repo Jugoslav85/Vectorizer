@@ -357,9 +357,97 @@ main{display:flex;flex-direction:column;overflow:hidden;min-width:0;}
 
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── App nav ── */
+.app-nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 500;
+  height: 52px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 16px 0 0;
+  gap: 0;
+  transition: background .2s, border-color .2s;
+}
+.app-nav-logo {
+  display: flex; align-items: center; gap: 0;
+  height: 52px; padding: 0 18px;
+  font-family: var(--font-ui); font-weight: 800; font-size: 16px;
+  color: var(--text); text-decoration: none; letter-spacing: -.3px;
+  border-right: 1px solid var(--border);
+  transition: background .15s;
+  flex-shrink: 0;
+}
+.app-nav-logo:hover { background: var(--surface2); }
+.app-nav-logo span { color: var(--accent); }
+.app-nav-back {
+  display: flex; align-items: center; gap: 6px;
+  height: 52px; padding: 0 16px;
+  font-size: 13px; font-family: var(--font-mono); font-weight: 500;
+  color: var(--muted); text-decoration: none;
+  border-right: 1px solid var(--border);
+  transition: color .15s, background .15s;
+  flex-shrink: 0;
+}
+.app-nav-back:hover { color: var(--text); background: var(--surface2); }
+.app-nav-spacer { flex: 1; }
+.app-nav-right {
+  display: flex; align-items: center; gap: 8px;
+}
+/* Push body content below fixed nav */
+body { padding-top: 52px; }
+/* Adjust sidebar to start below nav */
+aside { top: 52px; height: calc(100vh - 52px); position: relative; }
+body { height: calc(100vh); }
+
+/* ── Remove BG toggle ── */
+.rembg-toggle {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px;
+  background: var(--surface2);
+  border: 1.5px solid var(--border2);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  margin-bottom: 18px;
+  user-select: none;
+}
+.rembg-toggle:hover { border-color: var(--accent); }
+.rembg-toggle.active {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+.rembg-check {
+  width: 18px; height: 18px; border-radius: 5px;
+  border: 2px solid var(--border2);
+  background: var(--surface);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; font-size: 11px; color: #fff;
+  transition: all .15s;
+}
+.rembg-toggle.active .rembg-check {
+  background: var(--accent); border-color: var(--accent);
+}
+.rembg-text { flex: 1; }
+.rembg-label { font-size: 14px; font-weight: 700; color: var(--text); }
+.rembg-desc { font-size: 12px; color: var(--muted); margin-top: 2px; font-family: var(--font-mono); }
+
 </style>
 </head>
 <body>
+
+
+<!-- App navigation -->
+<nav class="app-nav">
+  <a href="/" class="app-nav-logo">⬡ Vector<span>izer</span></a>
+  <a href="/" class="app-nav-back">← Back to home</a>
+  <div class="app-nav-spacer"></div>
+  <div class="app-nav-right">
+    <button class="theme-toggle" id="theme-toggle">
+      <span id="theme-icon">🌙</span><span id="theme-label">Dark</span>
+    </button>
+  </div>
+</nav>
 
 <button class="toggle-btn" id="toggle-btn">◀</button>
 
@@ -367,9 +455,15 @@ main{display:flex;flex-direction:column;overflow:hidden;min-width:0;}
   <div class="sidebar-inner">
     <div class="header-row">
       <h1>⬡ Vector<span>izer</span></h1>
-      <button class="theme-toggle" id="theme-toggle">
-        <span id="theme-icon">🌙</span><span id="theme-label">Dark</span>
-      </button>
+    </div>
+
+    <!-- Remove background toggle -->
+    <div class="rembg-toggle" id="rembg-toggle" onclick="toggleRemoveBg()">
+      <div class="rembg-check" id="rembg-check"></div>
+      <div class="rembg-text">
+        <div class="rembg-label">Remove background</div>
+        <div class="rembg-desc">Cuts out the subject before vectorizing</div>
+      </div>
     </div>
 
     <div class="sec-label">Output style</div>
@@ -627,6 +721,7 @@ function getSettingsSnapshot() {
     ld: $('layer-difference').value,
     fs: $('filter-speckle').value,
     preset: activePreset,
+    rmbg: removeBg,
   });
 }
 function markSettingsChanged() {
@@ -637,6 +732,15 @@ function markSettingsChanged() {
 function saveSettingsSnapshot() {
   settingsSnapshot = getSettingsSnapshot();
   $('btn-reprocess').disabled = true;
+}
+
+// ── Remove background ────────────────────────────────────
+let removeBg = false;
+function toggleRemoveBg() {
+  removeBg = !removeBg;
+  $('rembg-toggle').classList.toggle('active', removeBg);
+  $('rembg-check').textContent = removeBg ? '✓' : '';
+  markSettingsChanged();
 }
 
 // ── Pan & Zoom ─────────────────────────────────────────────
@@ -828,6 +932,7 @@ async function runVectorize(){
 
   const fd=new FormData();
   fd.append('file',currentFile);
+  fd.append('remove_bg', removeBg ? '1' : '0');
   fd.append('blur_radius',    $('blur-radius').value);
   fd.append('color_precision',$('color-precision').value);
   fd.append('layer_difference',$('layer-difference').value);

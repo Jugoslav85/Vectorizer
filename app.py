@@ -122,6 +122,7 @@ def api_vectorize():
         "color_precision": gi("color_precision",  8),
         "layer_difference":gi("layer_difference", 1),
         "filter_speckle":  gi("filter_speckle",   6),
+        "remove_bg":       1 if request.form.get("remove_bg") == "1" else 0,
     }
 
     # ── Cache lookup ──
@@ -145,6 +146,7 @@ def api_vectorize():
     # ── Process ──
     print(f'[cache] MISS for session {session_id[:8]}', flush=True)
     t0 = time.time()
+    remove_bg = request.form.get("remove_bg") == "1"
     svg = vectorize(
         raw,
         posterize_bits    = 7,
@@ -152,6 +154,7 @@ def api_vectorize():
         unsharp_percent   = 90,
         unsharp_threshold = 4,
         blur_radius       = settings["blur_radius"],
+        remove_bg         = remove_bg,
         colormode         = "color",
         hierarchical      = "stacked",
         mode              = "spline",
@@ -222,9 +225,3 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"Vectorizer → http://localhost:{port}")
     app.run(debug=False, host="0.0.0.0", port=port)
-
-from flask import send_from_directory
-
-@app.route("/static/<path:filename>")
-def static_files(filename):
-    return send_from_directory(STATIC_DIR, filename)
