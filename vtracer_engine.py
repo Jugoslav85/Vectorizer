@@ -42,6 +42,9 @@ def _resize(img: Image.Image) -> Image.Image:
 
 def _preprocess(img: Image.Image, bits: int, radius: float, percent: int, threshold: int) -> Image.Image:
     rgb = img.convert('RGB')
+    # Dilate slightly to preserve small elements before posterizing
+    rgb = rgb.filter(ImageFilter.MaxFilter(3))
+    # Sharpen edges
     rgb = rgb.filter(ImageFilter.UnsharpMask(radius=radius, percent=percent, threshold=threshold))
     posterized = ImageOps.posterize(rgb, bits)
     if img.mode == 'RGBA':
