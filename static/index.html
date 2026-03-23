@@ -827,13 +827,20 @@ function load(f) {
       $('orig-meta').textContent=`${imgW}×${imgH}`;
       $('img-meta').textContent=`${imgW}×${imgH} · ${fmt(f.size)}`;
       // Show preview screen — single panel, wait for Vectorize click
-      // Copy image to preview panel
       $('inner-preview').innerHTML = '';
       const prev = document.createElement('img');
-      prev.src = e.target.result; prev.width = imgW; prev.height = imgH;
+      prev.style.display = 'block';
+      prev.width = imgW;
+      prev.height = imgH;
       $('inner-preview').appendChild(prev);
       $('preview-meta').textContent = imgW + '×' + imgH;
+      $('inner-preview').style.transformOrigin = '0 0';
       showPreviewScreen();
+      // Wait for image to paint before fitting
+      prev.onload = () => {
+        setTimeout(fitPreview, 50);
+      };
+      prev.src = e.target.result;
     };
     img.src=e.target.result;
   };
@@ -862,11 +869,13 @@ function showResultsScreen(){
 }
 function fitPreview(){
   if(!imgW) return;
-  const vp=$('vp-preview');
-  const z=Math.min(vp.clientWidth/imgW,vp.clientHeight/imgH)*.95;
-  const px=(vp.clientWidth-imgW*z)/2;
-  const py=(vp.clientHeight-imgH*z)/2;
-  $('inner-preview').style.transform=`translate(${px}px,${py}px) scale(${z})`;
+  const vp = $('vp-preview');
+  if(!vp) return;
+  const z = Math.min(vp.clientWidth / imgW, vp.clientHeight / imgH) * 0.95;
+  const px = (vp.clientWidth  - imgW * z) / 2;
+  const py = (vp.clientHeight - imgH * z) / 2;
+  $('inner-preview').style.transformOrigin = '0 0';
+  $('inner-preview').style.transform = `translate(${px}px,${py}px) scale(${z})`;
 }
 function resetToUpload(){
   currentFile=null; currentSvgText=null; currentSvgUrl=null; currentJobId=null;
