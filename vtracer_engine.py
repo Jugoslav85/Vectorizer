@@ -42,9 +42,11 @@ def _resize(img: Image.Image) -> Image.Image:
 
 def _preprocess(img: Image.Image, bits: int, radius: float, percent: int, threshold: int) -> Image.Image:
     rgb = img.convert('RGB')
-    # Dilate slightly to preserve small elements before posterizing
+    # Gentle blur to smooth soft-edged curves before tracing
+    rgb = rgb.filter(ImageFilter.GaussianBlur(radius=0.8))
+    # Dilate slightly to preserve small elements
     rgb = rgb.filter(ImageFilter.MaxFilter(1))
-    # Sharpen edges
+    # Sharpen edges to recover hard boundaries
     rgb = rgb.filter(ImageFilter.UnsharpMask(radius=radius, percent=percent, threshold=threshold))
     posterized = ImageOps.posterize(rgb, bits)
     if img.mode == 'RGBA':
