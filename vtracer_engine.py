@@ -368,6 +368,10 @@ def vectorize(image_data: bytes,
         processed = _preprocess_color(img, posterize_bits, unsharp_radius,
                                       unsharp_percent, unsharp_threshold, blur_radius)
         kwargs.setdefault('colormode', 'color')
+        kwargs.setdefault('mode', 'spline')
+        kwargs.setdefault('corner_threshold', 1)
+        kwargs.setdefault('length_threshold', 3.5)
+        kwargs.setdefault('splice_threshold', 1)
         print(f'[engine] color pipeline (blur={blur_radius}, posterize={posterize_bits}bits)', flush=True)
 
     inp = out = None

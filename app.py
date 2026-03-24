@@ -192,22 +192,21 @@ def api_vectorize():
     def _run():
         return vectorize(
             raw,
+            # Preprocessing params
             posterize_bits    = 7,
             unsharp_radius    = 0.5,
             unsharp_percent   = 90,
             unsharp_threshold = 4,
             blur_radius       = settings["blur_radius"],
+            # Engine mode — controls which pipeline runs
             engine_mode       = settings["engine_mode"],
             simplify          = True,
             simplify_epsilon  = 0.3,
-            colormode         = "color",
+            # vtracer base params (engine may override these for lineart/text)
             hierarchical      = "stacked",
-            mode              = "spline",
-            corner_threshold  = 1,
-            length_threshold  = 3.5,
             max_iterations    = 1,
-            splice_threshold  = 1,
             path_precision    = 1,
+            # User-controlled params
             filter_speckle    = settings["filter_speckle"],
             color_precision   = settings["color_precision"],
             layer_difference  = settings["layer_difference"],
