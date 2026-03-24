@@ -160,7 +160,7 @@ def api_vectorize():
             "cached":      True,
             "engine_mode": cached.get("engine_mode", "color"),
         }))
-        resp.set_cookie("vsid", session_id, max_age=86400, samesite="Lax")
+        resp.set_cookie("vsid", session_id, max_age=86400, samesite="Lax", httponly=True)
         return resp
 
     t0 = time.time()
@@ -217,7 +217,7 @@ def api_vectorize():
         "cached":      False,
         "engine_mode": settings["engine_mode"],
     }))
-    resp.set_cookie("vsid", session_id, max_age=86400, samesite="Lax")
+    resp.set_cookie("vsid", session_id, max_age=86400, samesite="Lax", httponly=True)
     return resp
 
 @app.route("/api/download/<job_id>")
