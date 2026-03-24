@@ -57,8 +57,8 @@ aside{
 body.collapsed aside{width:0;border-right:none;}
 .sidebar-inner{
   width:var(--sidebar-w);flex:1;
-  overflow-y:auto;overflow-x:hidden;
-  padding:22px 22px 24px;
+  overflow-y:scroll;overflow-x:hidden;
+  padding:22px 22px 40px;
   scrollbar-width:thin;scrollbar-color:var(--border2) transparent;
   min-height:0;
 }
@@ -123,7 +123,6 @@ h1 span{color:var(--accent);}
 }
 .btn-preset.active .preset-dot{background:var(--accent);}
 .btn-preset:hover .preset-dot{background:var(--accent);}
-.btn-preset-wide{grid-column:1/-1;flex-direction:row;gap:10px;justify-content:center;min-height:44px;}
 
 /* ── Tooltip ── */
 .has-tooltip{position:relative;}
@@ -450,10 +449,12 @@ body { height: calc(100vh); }
 
 /* ── Sidebar actions — always visible at bottom ── */
 .sidebar-actions {
+  position: sticky;
+  bottom: 0;
   background: var(--surface);
+  padding: 16px 0 0;
+  margin-top: 20px;
   border-top: 1px solid var(--border);
-  padding: 16px 22px 20px;
-  flex-shrink: 0;
 }
 
 /* ── Preview screen ── */
@@ -851,12 +852,6 @@ body { height: calc(100vh); }
   font-size: 13px; font-family: var(--font-mono); cursor: pointer;
 }
 
-
-/* ── Output quality toggles ── */
-.toggle-row{margin-bottom:10px;}
-.toggle-label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-family:var(--font-ui);font-weight:700;color:var(--text);}
-.toggle-label input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px;cursor:pointer;flex-shrink:0;}
-.toggle-desc{font-size:11px;color:var(--dim);font-family:var(--font-mono);margin-top:3px;margin-left:23px;line-height:1.4;}
 </style>
 </head>
 <body>
@@ -903,24 +898,6 @@ body { height: calc(100vh); }
         <button class="btn-preset" onclick="applyPreset('logo')">Logo & Clipart</button>
         <div class="tip">Clean reduced-color output with precise edges. Ideal for logos and print-ready artwork.</div>
       </div>
-      <div class="has-tooltip">
-        <button class="btn-preset" onclick="applyPreset('lineart')">
-          <span class="preset-dot"></span>Line Art
-        </button>
-        <div class="tip">B&W binary mode. Best for sketches, outlines, and pure line drawings.</div>
-      </div>
-      <div class="has-tooltip">
-        <button class="btn-preset" onclick="applyPreset('text')">
-          <span class="preset-dot"></span>Text &amp; Mixed
-        </button>
-        <div class="tip">Colour output with clean text regions. Use when your image contains text alongside artwork.</div>
-      </div>
-      <div class="has-tooltip" style="grid-column:1/-1;">
-        <button class="btn-preset btn-preset-wide" onclick="applyPreset('layered')">
-          <span class="preset-dot"></span>⚗ Advanced — Layer Separation
-        </button>
-        <div class="tip">Experimental. Separates edges, flat colour and gradients into three layers, vectorises each independently. Best for complex mixed designs. Takes slightly longer.</div>
-      </div>
     </div>
 
     <button class="btn-advanced" id="btn-advanced" onclick="toggleAdvanced()">
@@ -933,52 +910,27 @@ body { height: calc(100vh); }
 
       <div class="field">
         <div class="field-row"><label>Smooth edges</label><span class="field-val" id="v-br">0.8</span></div>
-        <div class="field-desc">Edge-aware smoothing before tracing. Reduces noise while preserving hard edges.</div>
-        <input type="range" id="blur-radius" min="0" max="3.0" step="0.1" value="0.8" oninput="$('v-br').textContent=this.value;markSettingsChanged()"/>
+        <div class="field-desc">Softens curved shapes before tracing. Helps circles and soft gradients look rounder.</div>
+        <input type="range" id="blur-radius" min="0" max="3.0" step="0.1" value="0.8"/>
       </div>
       <div class="field">
         <div class="field-row"><label>Color depth</label><span class="field-val" id="v-cp">8</span></div>
         <div class="field-desc">How many colors are used in the output. Higher = more accurate colors.</div>
-        <input type="range" id="color-precision" min="1" max="8" value="8" oninput="$('v-cp').textContent=this.value;markSettingsChanged()"/>
+        <input type="range" id="color-precision" min="1" max="8" value="8"/>
       </div>
       <div class="field">
         <div class="field-row"><label>Shape separation</label><span class="field-val" id="v-ld">1</span></div>
         <div class="field-desc">How distinct colors need to be to become separate shapes. Lower = more shapes.</div>
-        <input type="range" id="layer-difference" min="1" max="64" value="1" oninput="$('v-ld').textContent=this.value;markSettingsChanged()"/>
+        <input type="range" id="layer-difference" min="1" max="64" value="1"/>
       </div>
       <div class="field">
         <div class="field-row"><label>Clean up noise</label><span class="field-val" id="v-fs">6</span></div>
         <div class="field-desc">Removes tiny imperfections and specks. Higher = cleaner but may remove small details.</div>
-        <input type="range" id="filter-speckle" min="0" max="32" value="6" oninput="$('v-fs').textContent=this.value;markSettingsChanged()"/>
-      </div>
-
-      <div class="field">
-        <div class="field-row"><label>Posterize</label><span class="field-val" id="v-pb">7</span></div>
-        <div class="field-desc">Colour banding level before tracing. Lower = fewer tones, flatter look. Higher = more tonal detail.</div>
-        <input type="range" id="posterize-bits" min="2" max="8" value="7" oninput="$('v-pb').textContent=this.value;markSettingsChanged()"/>
-      </div>
-      <div class="field">
-        <div class="field-row"><label>Unsharp radius</label><span class="field-val" id="v-ur">0.5</span></div>
-        <div class="field-desc">Radius of the sharpening mask applied before tracing. Higher = wider sharpening halo.</div>
-        <input type="range" id="unsharp-radius" min="0" max="3.0" step="0.1" value="0.5" oninput="$('v-ur').textContent=(+this.value).toFixed(1);markSettingsChanged()"/>
-      </div>
-
-      <div class="field">
-        <div class="field-row"><label>Edge sharpness</label><span class="field-val" id="v-up">90</span></div>
-        <div class="field-desc">How aggressively edges are sharpened before tracing. Higher = crisper edges.</div>
-        <input type="range" id="unsharp-percent" min="0" max="200" step="10" value="90" oninput="$('v-up').textContent=this.value;markSettingsChanged()"/>
-      </div>
-
-      <div class="field">
-        <div class="field-row"><label>Path smoothing</label><span class="field-val" id="v-se">0.3</span></div>
-        <div class="field-desc">How aggressively redundant path points are removed. Higher = smoother but less precise.</div>
-        <input type="range" id="simplify-epsilon" min="0" max="2.0" step="0.1" value="0.3" oninput="$('v-se').textContent=(+this.value).toFixed(1);markSettingsChanged()"/>
+        <input type="range" id="filter-speckle" min="0" max="32" value="6"/>
       </div>
     </div>
 
-  </div><!-- end sidebar-inner -->
-
-  <div class="sidebar-actions">
+    <div class="sidebar-actions">
       <div class="status-row">
         <div class="status-dot" id="status-dot"></div>
         <span id="status">Upload an image to get started</span>
@@ -1002,6 +954,8 @@ body { height: calc(100vh); }
         <button class="btn-copy-svg" id="btn-copy-svg" onclick="copySvgCode()">⎘ Copy SVG code</button>
         <button class="btn-new" onclick="resetToUpload()">+ Convert a new image</button>
       </div>
+    </div>
+  </div>
 </aside>
 
 <main>
@@ -1013,9 +967,6 @@ body { height: calc(100vh); }
     <button class="mobile-preset-btn" onclick="mobilePreset('illustration')">Artwork</button>
     <button class="mobile-preset-btn" onclick="mobilePreset('photo')">Rich Detail</button>
     <button class="mobile-preset-btn" onclick="mobilePreset('logo')">Logo & Clipart</button>
-  <button class="mobile-preset-btn" onclick="mobilePreset('lineart')">Line Art</button>
-  <button class="mobile-preset-btn" onclick="mobilePreset('text')">Text & Mixed</button>
-  <button class="mobile-preset-btn" onclick="mobilePreset('layered')">⚗ Advanced</button>
   </div>
   <!-- Mobile fine-tune panel (collapsible) -->
   <div id="mobile-finetune">
@@ -1223,16 +1174,11 @@ function toggleAdvanced() {
 
 // ── Presets ────────────────────────────────────────────────
 const PRESETS = {
-  flat:         { cp:8, ld:7,  fs:14, br:0.8,  mode:'color'   },
-  illustration: { cp:8, ld:1,  fs:6,  br:0.8,  mode:'color'   },
-  photo:        { cp:8, ld:1,  fs:1,  br:0.8,  mode:'color'   },
-  logo:         { cp:4, ld:4,  fs:15, br:0.5,  mode:'color'   },
-  lineart:      { cp:4, ld:1,  fs:4,  br:0.3,  mode:'lineart' },
-  text:         { cp:8, ld:1,  fs:2,  br:0.3,  mode:'text'    },
-  layered:      { cp:8, ld:1,  fs:2,  br:0.3,  mode:'layered' },
+  flat:         { cp:8, ld:7,  fs:14, br:0.8 },
+  illustration: { cp:8, ld:1,  fs:6,  br:0.8 },
+  photo:        { cp:8, ld:1,  fs:1,  br:0.8 },
+  logo:         { cp:4, ld:4,  fs:15, br:0.5 },
 };
-// Track active engine mode
-let engineMode = 'auto';
 let activePreset = null;
 function applyPreset(name) {
   const p = PRESETS[name]; if (!p) return;
@@ -1244,7 +1190,6 @@ function applyPreset(name) {
   activePreset = name;
   document.querySelectorAll('.btn-preset').forEach(b => b.classList.remove('active'));
   document.querySelector(`[onclick="applyPreset('${name}')"]`).classList.add('active');
-  engineMode = p.mode || 'auto';
   const set = (id, lbl, val, dec=0) => { $(id).value=val; $(lbl).textContent=(+val).toFixed(dec); };
   set('blur-radius',     'v-br', p.br, 1);
   set('color-precision', 'v-cp', p.cp);
@@ -1526,53 +1471,6 @@ function setStatus(msg,state=''){
 
 function load(f) {
   if(f.size>20*1024*1024){setStatus('File too large (max 20MB)','error');return;}
-
-  // If a result already exists, fully reset UI before loading the new image
-  if (hasResult || currentFile) {
-    currentFile=null; currentSvgText=null; currentSvgUrl=null;
-    currentJobId=null; currentSrc=null;
-    hasResult=false; settingsSnapshot=null;
-    $('inner-orig').innerHTML=''; $('inner-svg').innerHTML='';
-    $('inner-preview').innerHTML=''; $('preview-meta').textContent='';
-    $('ph-svg').style.display=''; $('svg-meta').textContent='';
-    $('export-section').style.display='none';
-    $('btn-reprocess').style.display='none';
-    $('btn-reprocess').disabled=true;
-    $('btn-run').style.display='block';
-    $('btn-run').disabled=true;
-    imgW=0; imgH=0;
-    // Reset presets
-    activePreset=null; engineMode='auto';
-    document.querySelectorAll('.btn-preset').forEach(b=>b.classList.remove('active'));
-    document.querySelectorAll('.mobile-preset-btn').forEach(b=>b.classList.remove('active'));
-    // Reset sliders
-    const defs={'blur-radius':0.8,'v-br':0.8,'color-precision':8,'v-cp':8,
-      'layer-difference':1,'v-ld':1,'filter-speckle':6,'v-fs':6,
-      'posterize-bits':7,'v-pb':7,'unsharp-percent':90,'v-up':90,
-      'simplify-epsilon':0.3,'v-se':'0.3',
-      'unsharp-radius':0.5,'v-ur':'0.5'};
-    $('opt-gap-filler').checked = true;
-    $('opt-replace-shapes').checked = true;
-    $('opt-snap-palette').checked = true;
-    $('opt-group-colours').checked = false;
-  // Reset checkboxes to defaults
-  $('opt-gap-filler').checked = true;
-  $('opt-replace-shapes').checked = true;
-  $('opt-snap-palette').checked = true;
-  $('opt-group-colours').checked = false;
-    Object.entries(defs).forEach(([id,val])=>{
-      const el=$(id); if(!el) return;
-      if(el.tagName==='INPUT') el.value=val; else el.textContent=val;
-    });
-    // Close advanced panel
-    const ap=$('advanced-panel');
-    if(ap) ap.style.display='none';
-    const ba=$('btn-advanced');
-    if(ba) ba.textContent='▾ Fine-tune settings';
-    // Apply default preset
-    applyPreset('flat');
-  }
-
   currentFile=f;
   const reader=new FileReader();
   reader.onload=e=>{
@@ -1641,39 +1539,6 @@ function resetToUpload(){
   $('btn-run').style.display='block';
   $('btn-run').disabled=true;
   imgW=0; imgH=0;
-  // Reset preset selection
-  activePreset = null;
-  engineMode = 'auto';
-  document.querySelectorAll('.btn-preset').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.mobile-preset-btn').forEach(b => b.classList.remove('active'));
-
-  // Reset all sliders to defaults
-  const defaults = {
-    'blur-radius': 0.8, 'v-br': 0.8,
-    'color-precision': 8, 'v-cp': 8,
-    'layer-difference': 1, 'v-ld': 1,
-    'filter-speckle': 6, 'v-fs': 6,
-    'posterize-bits': 7, 'v-pb': 7,
-    'unsharp-percent': 90, 'v-up': 90,
-    'simplify-epsilon': 0.3, 'v-se': '0.3',
-  };
-  Object.entries(defaults).forEach(([id, val]) => {
-    const el = $(id);
-    if (!el) return;
-    if (el.tagName === 'INPUT') el.value = val;
-    else el.textContent = val;
-  });
-
-  // Close advanced panel if open
-  const ap = $('advanced-panel');
-  if (ap && ap.style.display !== 'none') {
-    ap.style.display = 'none';
-    $('btn-advanced').textContent = '▾ Fine-tune settings';
-  }
-
-  // Re-apply default preset (Flat Design)
-  applyPreset('flat');
-
   setStatus('Upload an image to get started','');
   showUploadScreen();
   fi.value='';
@@ -1808,16 +1673,7 @@ async function runVectorize(){
 
   const fd=new FormData();
   fd.append('file',currentFile);
-  fd.append('engine_mode',      engineMode);
-  fd.append('blur_radius',      $('blur-radius').value);
-  fd.append('posterize_bits',   $('posterize-bits').value);
-  fd.append('unsharp_percent',  $('unsharp-percent').value);
-  fd.append('unsharp_radius',   $('unsharp-radius').value);
-  fd.append('simplify_epsilon', $('simplify-epsilon').value);
-  fd.append('use_gap_filler',   $('opt-gap-filler').checked   ? '1' : '0');
-  fd.append('replace_shapes',   $('opt-replace-shapes').checked ? '1' : '0');
-  fd.append('snap_palette',     $('opt-snap-palette').checked  ? '1' : '0');
-  fd.append('group_colours',    $('opt-group-colours').checked ? '1' : '0');
+  fd.append('blur_radius',    $('blur-radius').value);
   fd.append('color_precision',$('color-precision').value);
   fd.append('layer_difference',$('layer-difference').value);
   fd.append('filter_speckle', $('filter-speckle').value);
@@ -1871,8 +1727,7 @@ async function runVectorize(){
 
     $('svg-meta').textContent=`${data.paths} paths`;
     const cacheTag = data.cached ? ' ⚡ cached' : '';
-    const modeTag = data.engine_mode && data.engine_mode !== 'color' ? ` · ${data.engine_mode}` : '';
-    setStatus(`Done in ${data.elapsed}s${cacheTag}${modeTag}`,'ready');
+    setStatus(`Done in ${data.elapsed}s${cacheTag}`,'ready');
     $('export-section').style.display='flex';
 
     // Setup reprocess button
