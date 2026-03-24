@@ -292,7 +292,7 @@ def _remove_short_paths(svg: str, min_size: float = 2.0) -> str:
 
 # ── Layer separation vectorisation ───────────────────────────────────────────
 
-def _detect_edges_pillow(img: Image.Image, threshold: int = 30) -> Image.Image:
+def _detect_edges_pillow(img: Image.Image, threshold: int = 20) -> Image.Image:
     """
     Detect hard edges using Pillow FIND_EDGES filter.
     Returns a greyscale mask — white where edges are, black elsewhere.
@@ -302,7 +302,7 @@ def _detect_edges_pillow(img: Image.Image, threshold: int = 30) -> Image.Image:
     # Threshold — only keep strong edges
     edges = edges.point(lambda p: 255 if p > threshold else 0)
     # Dilate slightly to capture full stroke width
-    edges = edges.filter(ImageFilter.MaxFilter(3))
+    edges = edges.filter(ImageFilter.MaxFilter(1))
     return edges
 
 
@@ -349,33 +349,37 @@ def _apply_mask(img: Image.Image, mask: Image.Image,
 def _merge_svgs(svgs: list) -> str:
     """
     Merge multiple SVG strings into one, stacking layers in order.
-    First SVG sets the dimensions, subsequent SVGs have their content extracted.
+    Background rectangles stripped from upper layers so they don't cover lower ones.
     """
     if not svgs:
         return ''
     if len(svgs) == 1:
         return svgs[0]
 
-    # Extract viewBox/dimensions from first SVG
-    import re
+    import re as _re
+
     first = svgs[0]
-    # Get the opening svg tag
-    svg_open_match = re.search(r'<svg[^>]+>', first)
+    svg_open_match = _re.search(r'<svg[^>]+>', first)
     if not svg_open_match:
         return first
     svg_open = svg_open_match.group(0)
 
-    # Extract inner content from each SVG (everything between <svg...> and </svg>)
-    def get_inner(svg_str):
-        inner = re.sub(r'^.*?<svg[^>]+>', '', svg_str, flags=re.DOTALL)  # noqa
-        inner = re.sub(r'</svg>\s*$', '', inner, flags=re.DOTALL)
-        return inner.strip()
+    def get_inner(svg_str, strip_bg=False):
+        s = _re.sub(r'<\?xml[^>]+\?>', '', svg_str)
+        s = _re.sub(r'<!DOCTYPE[^>]+>', '', s)
+        s = _re.sub(r'<svg[^>]+>', '', s)
+        s = _re.sub(r'</svg>', '', s)
+        if strip_bg:
+            # Remove vtracer background rectangle (first rect element)
+            s = _re.sub(r'<rect[^/]*/>', '', s, count=1)
+            s = _re.sub(r'<rect[^>]+></rect>', '', s, count=1)
+        return s.strip()
 
     merged_content = []
     for i, svg in enumerate(svgs):
-        inner = get_inner(svg)
+        inner = get_inner(svg, strip_bg=(i > 0))
         if inner:
-            merged_content.append(f'  <g id="layer{i}">')
+            merged_content.append('  <g id="layer{}">'.format(i))
             merged_content.append(inner)
             merged_content.append('  </g>')
 
