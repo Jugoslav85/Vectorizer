@@ -4,14 +4,7 @@ from flask import Flask, request, jsonify, send_from_directory, send_file, Respo
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect
-try:
-    from vtracer_engine import vectorize
-    print("[startup] vtracer_engine imported OK", flush=True)
-except Exception as _import_err:
-    import traceback as _tb
-    print(f"[startup] FATAL: vtracer_engine import failed: {_import_err}", flush=True)
-    _tb.print_exc()
-    raise
+from vtracer_engine import vectorize
 
 BASE_DIR    = Path(__file__).parent
 OUTPUT_DIR  = BASE_DIR / "outputs"
@@ -21,65 +14,50 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 
 app = Flask(__name__, static_folder=str(STATIC_DIR))
 app.secret_key = os.environ.get("SECRET_KEY", "scaylr-dev-key-change-in-prod")
-app.config["WTF_CSRF_ENABLED"] = False  # API-only, CSRF handled via rate limiting + validation
+app.config["WTF_CSRF_ENABLED"] = False
 
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=[],
-    storage_uri="memory://"
-)
+limiter = Limiter(get_remote_address, app=app, default_limits=[], storage_uri="memory://")
 csrf = CSRFProtect(app)
 
 ALLOWED        = {".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif"}
-MAX_FILE_BYTES = 20 * 1024 * 1024  # 20MB
-CACHE_TTL      = 3600              # 1 hour in seconds
+MAX_FILE_BYTES = 20 * 1024 * 1024
+CACHE_TTL      = 3600
+_cache: dict   = {}
 
-# ── In-memory cache ──────────────────────────────────────────────────────────
-# Structure: { session_id: { cache_key: { svg, paths, elapsed, job_id, ts } } }
-_cache: dict = {}
-
-def _get_session_id(req) -> str:
-    """Get or create a session ID from cookie."""
+def _get_session_id(req):
     return req.cookies.get("vsid") or uuid.uuid4().hex
 
-def _cache_key(image_bytes: bytes, settings: dict) -> str:
+def _cache_key(image_bytes, settings):
     h = hashlib.md5(image_bytes).hexdigest()
     s = json.dumps(settings, sort_keys=True)
     return hashlib.md5(f"{h}:{s}".encode()).hexdigest()
 
-def _cache_get(session_id: str, key: str):
-    session = _cache.get(session_id, {})
-    entry   = session.get(key)
+def _cache_get(session_id, key):
+    entry = _cache.get(session_id, {}).get(key)
     if entry and (time.time() - entry["ts"]) < CACHE_TTL:
         return entry
     return None
 
-def _cache_set(session_id: str, key: str, value: dict):
+def _cache_set(session_id, key, value):
     if session_id not in _cache:
         _cache[session_id] = {}
     value["ts"] = time.time()
     _cache[session_id][key] = value
-    _prune_cache()
-
-def _prune_cache():
-    """Remove expired entries to keep memory clean."""
     now = time.time()
     for sid in list(_cache.keys()):
-        _cache[sid] = {
-            k: v for k, v in _cache[sid].items()
-            if now - v["ts"] < CACHE_TTL
-        }
+        _cache[sid] = {k: v for k, v in _cache[sid].items() if now - v["ts"] < CACHE_TTL}
         if not _cache[sid]:
             del _cache[sid]
 
-# ── Error handler ─────────────────────────────────────────────────────────────
 @app.errorhandler(Exception)
 def eany(e):
     traceback.print_exc()
     return jsonify({"error": str(e)}), 500
 
-# ── Pages ─────────────────────────────────────────────────────────────────────
+@app.route("/health")
+def health():
+    return "ok", 200
+
 @app.route("/")
 def landing():
     return send_from_directory(STATIC_DIR, "landing.html")
@@ -102,42 +80,33 @@ def privacy():
 
 @app.route("/favicon.svg")
 def favicon():
-    return send_from_directory(STATIC_DIR + "/images", "favicon.svg"), 200, {"Content-Type": "image/svg+xml"}
+    return send_from_directory(str(STATIC_DIR) + "/images", "favicon.svg"), 200, {"Content-Type": "image/svg+xml"}
 
 @app.route("/app")
 def index():
     return send_from_directory(STATIC_DIR, "index.html")
 
-# ── Samples API ───────────────────────────────────────────────────────────────
 @app.route("/api/samples")
 def api_samples():
-    """Return sample list from samples.json, or auto-discover if no json."""
     meta_path = SAMPLES_DIR / "samples.json"
     if meta_path.exists():
         samples = json.loads(meta_path.read_text())
     else:
-        # Auto-discover image files if no samples.json
         exts = {".png", ".jpg", ".jpeg", ".webp"}
         files = sorted(f for f in SAMPLES_DIR.iterdir() if f.suffix.lower() in exts)
-        samples = [
-            {"file": f.name, "name": f.stem.replace("-", " ").replace("_", " ").title(), "preset": "illustration"}
-            for f in files
-        ]
-    # Attach URLs
+        samples = [{"file": f.name, "name": f.stem.replace("-"," ").replace("_"," ").title(), "preset": "illustration"} for f in files]
     for s in samples:
         s["url"] = f"/static/images/samples/{s['file']}"
     return jsonify(samples)
 
 @app.route("/api/sample-image/<filename>")
 def api_sample_image(filename):
-    """Serve a sample image file directly."""
-    safe = Path(filename).name  # strip any path traversal
+    safe = Path(filename).name
     p = SAMPLES_DIR / safe
     if not p.exists():
         return jsonify({"error": "Not found"}), 404
     return send_file(p)
 
-# ── Vectorize ─────────────────────────────────────────────────────────────────
 @app.route("/api/vectorize", methods=["POST"])
 @limiter.limit("30 per hour;5 per minute")
 def api_vectorize():
@@ -149,7 +118,6 @@ def api_vectorize():
     raw = f.read()
     if len(raw) > MAX_FILE_BYTES:
         return jsonify({"error": "File too large (max 20MB)"}), 400
-    # Validate actual image content — not just extension
     try:
         from PIL import Image
         import io
@@ -175,61 +143,46 @@ def api_vectorize():
         "unsharp_percent":  gi("unsharp_percent",   90),
         "unsharp_radius":   gf("unsharp_radius",    0.5),
         "simplify_epsilon": gf("simplify_epsilon",  0.3),
-        "use_gap_filler":   request.form.get("use_gap_filler",   "1") == "1",
-        "replace_shapes":   request.form.get("replace_shapes",   "1") == "1",
-        "snap_palette":     request.form.get("snap_palette",     "1") == "1",
-        "group_colours":    request.form.get("group_colours",    "0") == "1",
     }
 
-    # ── Cache lookup ──
     session_id = _get_session_id(request)
     key        = _cache_key(raw, settings)
     cached     = _cache_get(session_id, key)
 
     if cached:
-        print(f'[cache] HIT for session {session_id[:8]}', flush=True)
         resp = make_response(jsonify({
-            "job_id":   cached["job_id"],
-            "elapsed":  cached["elapsed"],
-            "paths":    cached["paths"],
-            "svg":      cached["svg"],
-            "download": f"/api/download/{cached['job_id']}",
-            "cached":   True,
+            "job_id":      cached["job_id"],
+            "elapsed":     cached["elapsed"],
+            "paths":       cached["paths"],
+            "svg":         cached["svg"],
+            "download":    f"/api/download/{cached['job_id']}",
+            "cached":      True,
+            "engine_mode": cached.get("engine_mode", "color"),
         }))
         resp.set_cookie("vsid", session_id, max_age=86400, samesite="Lax")
         return resp
 
-    # ── Process ──
-    print(f'[cache] MISS for session {session_id[:8]}', flush=True)
     t0 = time.time()
-    # Run vectorize with 90s timeout
     import concurrent.futures
     def _run():
         return vectorize(
             raw,
-            # Preprocessing params
             posterize_bits    = settings["posterize_bits"],
             unsharp_radius    = settings["unsharp_radius"],
             unsharp_percent   = settings["unsharp_percent"],
             unsharp_threshold = 4,
             blur_radius       = settings["blur_radius"],
-            # Engine mode — controls which pipeline runs
             engine_mode       = settings["engine_mode"],
             simplify          = True,
             simplify_epsilon  = settings["simplify_epsilon"],
-            # vtracer base params (engine may override these for lineart/text)
             hierarchical      = "stacked",
             max_iterations    = 1,
             path_precision    = 1,
-            # User-controlled params
             filter_speckle    = settings["filter_speckle"],
             color_precision   = settings["color_precision"],
             layer_difference  = settings["layer_difference"],
-            use_gap_filler    = settings["use_gap_filler"],
-            replace_shapes    = settings["replace_shapes"],
-            do_snap_palette   = settings["snap_palette"],
-            group_colours     = settings["group_colours"],
         )
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         future = executor.submit(_run)
         try:
@@ -237,44 +190,40 @@ def api_vectorize():
         except concurrent.futures.TimeoutError:
             future.cancel()
             return jsonify({"error": "Processing timed out. Try a smaller image or simpler preset."}), 504
+
     elapsed = round(time.time() - t0, 2)
     paths   = svg.count("<path")
-
-    # Save to disk for PDF export
-    job_id   = uuid.uuid4().hex[:12]
+    job_id  = uuid.uuid4().hex[:12]
     out_path = OUTPUT_DIR / f"{job_id}.svg"
     out_path.write_text(svg, encoding="utf-8")
 
-    # Keep last 20 on disk
     svgs = sorted(OUTPUT_DIR.glob("*.svg"), key=lambda p: p.stat().st_mtime)
     for old in svgs[:-20]:
         old.unlink(missing_ok=True)
 
-    # Store in cache
     _cache_set(session_id, key, {
-        "job_id": job_id, "elapsed": elapsed, "paths": paths, "svg": svg
+        "job_id": job_id, "elapsed": elapsed, "paths": paths,
+        "svg": svg, "engine_mode": settings["engine_mode"]
     })
 
     resp = make_response(jsonify({
-        "job_id":     job_id,
-        "elapsed":    elapsed,
-        "paths":      paths,
-        "svg":        svg,
-        "download":   f"/api/download/{job_id}",
-        "cached":     False,
+        "job_id":      job_id,
+        "elapsed":     elapsed,
+        "paths":       paths,
+        "svg":         svg,
+        "download":    f"/api/download/{job_id}",
+        "cached":      False,
         "engine_mode": settings["engine_mode"],
     }))
     resp.set_cookie("vsid", session_id, max_age=86400, samesite="Lax")
     return resp
 
-# ── Download / PDF ────────────────────────────────────────────────────────────
 @app.route("/api/download/<job_id>")
 def api_download(job_id):
     if not job_id.isalnum(): return jsonify({"error": "Bad ID"}), 400
     p = OUTPUT_DIR / f"{job_id}.svg"
     if not p.exists(): return jsonify({"error": "Not found"}), 404
-    return send_file(p, mimetype="image/svg+xml", as_attachment=True,
-                     download_name=f"vector_{job_id}.svg")
+    return send_file(p, mimetype="image/svg+xml", as_attachment=True, download_name=f"vector_{job_id}.svg")
 
 @app.route("/api/download-pdf/<job_id>")
 def api_download_pdf(job_id):
@@ -292,7 +241,5 @@ def api_download_pdf(job_id):
         return jsonify({"error": f"PDF export failed: {e}"}), 500
 
 if __name__ == "__main__":
-    import os
     port = int(os.environ.get("PORT", 5000))
-    print(f"Vectorizer → http://localhost:{port}")
     app.run(debug=False, host="0.0.0.0", port=port)
