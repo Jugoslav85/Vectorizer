@@ -353,18 +353,31 @@ def vectorize(image_data: bytes,
         print('[engine] lineart pipeline → binary vtracer', flush=True)
 
     elif mode == 'text':
-        # Colour image with text — preserve colours, binarise text regions only
-        # Then run through colour vtracer so the output retains original colours
-        processed = _binarise_text_regions(img)
-        # Stay in colour mode — text regions are already B&W in the composite
+        # Mixed content (colour + text): strong contrast + quantisation + tight tracing
+        # Better than variance-based text detection which misidentifies gradients as text
+        rgb = img.convert('RGB')
+        # Step 1: Strong contrast enhancement to make text edges crisp
+        rgb = ImageEnhance.Contrast(rgb).enhance(1.8)
+        rgb = ImageEnhance.Sharpness(rgb).enhance(2.0)
+        # Step 2: Bilateral filter to smooth colour areas while keeping hard edges
+        rgb = _bilateral_filter(rgb, radius=0.5)
+        # Step 3: Quantise to clean colour set — reduces gradient noise
+        rgb = _quantise(rgb, n_colors=24)
+        # Step 4: Final unsharp to recover crisp boundaries after quantisation
+        rgb = rgb.filter(ImageFilter.UnsharpMask(radius=1.0, percent=120, threshold=2))
+        # Preserve alpha if present
+        if img.mode == 'RGBA':
+            rgb = rgb.convert('RGBA')
+            rgb.putalpha(img.getchannel('A'))
+        processed = rgb
+        # Tight corner detection + high precision for clean text paths
         kwargs.setdefault('colormode', 'color')
-        kwargs.setdefault('filter_speckle', 3)
-        kwargs.setdefault('corner_threshold', 30)
-        kwargs.setdefault('length_threshold', 3.5)
-        kwargs.setdefault('splice_threshold', 30)
         kwargs.setdefault('mode', 'spline')
-        kwargs.setdefault('path_precision', 2)
-        print('[engine] text pipeline → colour vtracer with binarised text regions', flush=True)
+        kwargs.setdefault('corner_threshold', 60)
+        kwargs.setdefault('length_threshold', 3.0)
+        kwargs.setdefault('splice_threshold', 45)
+        kwargs.setdefault('path_precision', 3)
+        print('[engine] text/mixed pipeline → contrast+quantise+sharpen → colour vtracer', flush=True)
 
     else:  # color
         processed = _preprocess_color(img, posterize_bits, unsharp_radius,
