@@ -159,11 +159,15 @@ def api_vectorize():
         except: return d
 
     settings = {
-        "blur_radius":     gf("blur_radius",     0.8),
-        "color_precision": gi("color_precision",  8),
-        "layer_difference":gi("layer_difference", 1),
-        "filter_speckle":  gi("filter_speckle",   6),
-        "engine_mode":     request.form.get("engine_mode", "auto"),
+        "blur_radius":      gf("blur_radius",      0.8),
+        "color_precision":  gi("color_precision",   8),
+        "layer_difference": gi("layer_difference",  1),
+        "filter_speckle":   gi("filter_speckle",    6),
+        "engine_mode":      request.form.get("engine_mode", "auto"),
+        "posterize_bits":   gi("posterize_bits",    7),
+        "unsharp_percent":  gi("unsharp_percent",   90),
+        "unsharp_radius":   gf("unsharp_radius",    0.5),
+        "simplify_epsilon": gf("simplify_epsilon",  0.3),
     }
 
     # ── Cache lookup ──
@@ -193,15 +197,15 @@ def api_vectorize():
         return vectorize(
             raw,
             # Preprocessing params
-            posterize_bits    = 7,
-            unsharp_radius    = 0.5,
-            unsharp_percent   = 90,
+            posterize_bits    = settings["posterize_bits"],
+            unsharp_radius    = settings["unsharp_radius"],
+            unsharp_percent   = settings["unsharp_percent"],
             unsharp_threshold = 4,
             blur_radius       = settings["blur_radius"],
             # Engine mode — controls which pipeline runs
             engine_mode       = settings["engine_mode"],
             simplify          = True,
-            simplify_epsilon  = 0.3,
+            simplify_epsilon  = settings["simplify_epsilon"],
             # vtracer base params (engine may override these for lineart/text)
             hierarchical      = "stacked",
             max_iterations    = 1,
