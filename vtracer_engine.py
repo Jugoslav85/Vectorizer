@@ -290,6 +290,254 @@ def _remove_short_paths(svg: str, min_size: float = 2.0) -> str:
     )
 
 
+# ── Layer separation vectorisation ───────────────────────────────────────────
+
+def _detect_edges_pillow(img: Image.Image, threshold: int = 30) -> Image.Image:
+    """
+    Detect hard edges using Pillow FIND_EDGES filter.
+    Returns a greyscale mask — white where edges are, black elsewhere.
+    """
+    gray = img.convert('L')
+    edges = gray.filter(ImageFilter.FIND_EDGES)
+    # Threshold — only keep strong edges
+    edges = edges.point(lambda p: 255 if p > threshold else 0)
+    # Dilate slightly to capture full stroke width
+    edges = edges.filter(ImageFilter.MaxFilter(3))
+    return edges
+
+
+def _detect_gradients(img: Image.Image, block: int = 16,
+                       var_threshold: float = 400) -> Image.Image:
+    """
+    Detect gradient/complex areas using local variance.
+    Returns a mask — white where gradients are detected.
+    """
+    gray = img.convert('L')
+    w, h = img.size
+    grad_mask = Image.new('L', (w, h), 0)
+    draw = ImageDraw.Draw(grad_mask)
+
+    for y in range(0, h, block):
+        for x in range(0, w, block):
+            box = (x, y, min(x+block, w), min(y+block, h))
+            region = gray.crop(box)
+            pixels = list(region.getdata())
+            if len(pixels) < 4:
+                continue
+            mean = sum(pixels) / len(pixels)
+            variance = sum((p - mean)**2 for p in pixels) / len(pixels)
+            if variance > var_threshold:
+                draw.rectangle(box, fill=200)
+
+    # Smooth the mask
+    grad_mask = grad_mask.filter(ImageFilter.GaussianBlur(radius=block//2))
+    return grad_mask
+
+
+def _apply_mask(img: Image.Image, mask: Image.Image,
+                invert: bool = False) -> Image.Image:
+    """Apply a mask to an image, returning RGBA with transparency where mask is black."""
+    rgba = img.convert('RGBA')
+    if invert:
+        mask = mask.point(lambda p: 255 - p)
+    # Ensure mask is L mode
+    m = mask.convert('L')
+    rgba.putalpha(m)
+    return rgba
+
+
+def _merge_svgs(svgs: list) -> str:
+    """
+    Merge multiple SVG strings into one, stacking layers in order.
+    First SVG sets the dimensions, subsequent SVGs have their content extracted.
+    """
+    if not svgs:
+        return ''
+    if len(svgs) == 1:
+        return svgs[0]
+
+    # Extract viewBox/dimensions from first SVG
+    import re
+    first = svgs[0]
+    # Get the opening svg tag
+    svg_open_match = re.search(r'<svg[^>]+>', first)
+    if not svg_open_match:
+        return first
+    svg_open = svg_open_match.group(0)
+
+    # Extract inner content from each SVG (everything between <svg...> and </svg>)
+    def get_inner(svg_str):
+        inner = re.sub(r'^.*?<svg[^>]+>', '', svg_str, flags=re.DOTALL)  # noqa
+        inner = re.sub(r'</svg>\s*$', '', inner, flags=re.DOTALL)
+        return inner.strip()
+
+    merged_content = []
+    for i, svg in enumerate(svgs):
+        inner = get_inner(svg)
+        if inner:
+            merged_content.append(f'  <g id="layer{i}">')
+            merged_content.append(inner)
+            merged_content.append('  </g>')
+
+    return svg_open + '\n' + '\n'.join(merged_content) + '\n</svg>'
+
+
+def _vectorize_layer(img_pil: Image.Image, mode: str, **kwargs) -> str:
+    """
+    Vectorize a single PIL image layer, returns SVG string.
+    mode: 'bw' or 'color'
+    """
+    buf = io.BytesIO()
+    img_pil.save(buf, format='PNG')
+    raw = buf.getvalue()
+
+    inp = out = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
+            img_pil.save(f.name, format='PNG')
+            inp = f.name
+        out = inp.replace('.png', '_layer.svg')
+        vtracer.convert_image_to_svg_py(inp, out, colormode=mode, **kwargs)
+        return open(out, encoding='utf-8').read()
+    finally:
+        if inp and os.path.exists(inp): os.unlink(inp)
+        if out and os.path.exists(out): os.unlink(out)
+
+
+def vectorize_layered(image_data: bytes,
+                      simplify: bool = True,
+                      simplify_epsilon: float = 0.3) -> str:
+    """
+    Three-layer vectorisation:
+    1. Edge layer  — hard edges binarised with Otsu → vtracer bw → crisp outlines
+    2. Colour layer — flat colour regions → vtracer color → clean fills
+    3. Gradient layer — complex areas → vtracer color → approximate
+
+    Layers are merged: gradient (bottom) → colour (middle) → edges (top)
+    """
+    img = Image.open(io.BytesIO(image_data)).convert('RGBA')
+    img = _resize(img)
+    w, h = img.size
+    print(f'[layered] input {w}x{h}', flush=True)
+
+    rgb = img.convert('RGB')
+
+    # ── Detect masks ──────────────────────────────────────────────────────────
+    print('[layered] detecting layers…', flush=True)
+
+    # Edge mask — hard boundaries everywhere
+    edge_mask = _detect_edges_pillow(rgb, threshold=25)
+
+    # Gradient mask — smooth tonal variation areas
+    grad_mask = _detect_gradients(rgb, block=16, var_threshold=350)
+
+    # Flat colour mask = everything that's NOT an edge AND NOT a gradient
+    # We don't need this explicitly — we just process the whole image for colour
+
+    # ── Prepare each layer ────────────────────────────────────────────────────
+
+    # LAYER 1: Edge layer — strong contrast + Otsu → clean B&W strokes
+    print('[layered] preparing edge layer…', flush=True)
+    edge_rgb = rgb.copy()
+    edge_rgb = ImageEnhance.Contrast(edge_rgb).enhance(2.5)
+    edge_rgb = ImageEnhance.Sharpness(edge_rgb).enhance(2.0)
+    edge_rgb = _bilateral_filter(edge_rgb, radius=0.8)
+    edge_gray = edge_rgb.convert('L')
+    edge_binary = _otsu_threshold(edge_gray).convert('RGB')
+
+    # Mask edge layer: only keep pixels where edges were detected
+    edge_rgba = edge_binary.convert('RGBA')
+    # Make non-edge areas transparent
+    edge_data = list(edge_rgba.getdata())
+    mask_data = list(edge_mask.getdata())
+    for i, (r, g, b, a) in enumerate(edge_data):
+        # Only keep dark (stroke) pixels where edge mask is active
+        if mask_data[i] < 128 or (r > 200 and g > 200 and b > 200):
+            edge_data[i] = (r, g, b, 0)  # transparent
+    edge_rgba.putdata(edge_data)
+    # Save with transparency for vtracer
+    edge_for_trace = edge_rgba.convert('RGB')
+    # Paint transparent areas white (vtracer needs solid bg)
+    edge_bg = Image.new('RGB', (w, h), (255, 255, 255))
+    edge_bg.paste(edge_for_trace, mask=edge_rgba.split()[3])
+
+    # LAYER 2: Colour layer — bilateral + posterize for clean flat fills
+    print('[layered] preparing colour layer…', flush=True)
+    colour_rgb = rgb.copy()
+    colour_rgb = ImageEnhance.Color(colour_rgb).enhance(1.2)
+    colour_rgb = _bilateral_filter(colour_rgb, radius=1.0)
+    colour_rgb = colour_rgb.filter(
+        ImageFilter.UnsharpMask(radius=0.8, percent=80, threshold=3))
+    colour_processed = _preprocess_color(
+        img, bits=6, unsharp_radius=0.5, unsharp_percent=80,
+        unsharp_threshold=3, blur_radius=0.6)
+    colour_for_trace = colour_processed.convert('RGB')
+
+    # LAYER 3: Gradient layer — minimal processing, just resize
+    print('[layered] preparing gradient layer…', flush=True)
+    grad_rgb = rgb.copy()
+    grad_rgb = _bilateral_filter(grad_rgb, radius=0.5)
+    grad_for_trace = grad_rgb
+
+    # ── Vectorize each layer ──────────────────────────────────────────────────
+    print('[layered] vectorizing edge layer…', flush=True)
+    svg_edges = _vectorize_layer(
+        edge_bg,
+        mode='bw',
+        corner_threshold=60,
+        length_threshold=4.0,
+        filter_speckle=3,
+        splice_threshold=45,
+        path_precision=3,
+    )
+    paths_e = svg_edges.count('<path')
+    print(f'[layered] edge layer: {paths_e} paths', flush=True)
+
+    print('[layered] vectorizing colour layer…', flush=True)
+    svg_colour = _vectorize_layer(
+        colour_for_trace,
+        mode='color',
+        corner_threshold=20,
+        length_threshold=3.5,
+        filter_speckle=4,
+        color_precision=8,
+        layer_difference=2,
+        splice_threshold=20,
+        path_precision=2,
+    )
+    paths_c = svg_colour.count('<path')
+    print(f'[layered] colour layer: {paths_c} paths', flush=True)
+
+    print('[layered] vectorizing gradient layer…', flush=True)
+    svg_gradient = _vectorize_layer(
+        grad_for_trace,
+        mode='color',
+        corner_threshold=5,
+        length_threshold=4.0,
+        filter_speckle=8,
+        color_precision=6,
+        layer_difference=8,
+        splice_threshold=5,
+        path_precision=1,
+    )
+    paths_g = svg_gradient.count('<path')
+    print(f'[layered] gradient layer: {paths_g} paths', flush=True)
+
+    # ── Merge layers: gradient (bottom) → colour → edges (top) ───────────────
+    print('[layered] merging layers…', flush=True)
+    merged = _merge_svgs([svg_gradient, svg_colour, svg_edges])
+
+    # Post-process merged SVG
+    merged = _remove_short_paths(merged, min_size=2.0)
+    if simplify:
+        merged = _simplify_svg_paths(merged, epsilon=simplify_epsilon)
+
+    total = merged.count('<path')
+    print(f'[layered] final: {total} paths total '
+          f'(g:{paths_g} c:{paths_c} e:{paths_e})', flush=True)
+    return merged
+
+
 # ── Auto-detect image type ────────────────────────────────────────────────────
 def _detect_mode(img: Image.Image) -> str:
     """
@@ -327,6 +575,15 @@ def vectorize(image_data: bytes,
               simplify: bool         = True,
               simplify_epsilon: float = 0.3,
               **kwargs) -> str:
+
+    # Layered mode runs its own pipeline
+    if engine_mode == 'layered':
+        print('[engine] layered mode → three-layer separation', flush=True)
+        return vectorize_layered(
+            image_data,
+            simplify=simplify,
+            simplify_epsilon=simplify_epsilon,
+        )
 
     img = Image.open(io.BytesIO(image_data)).convert('RGBA')
     img = _resize(img)
