@@ -514,378 +514,335 @@ body { height: calc(100vh); }
 /* ══════════════════════════════════════════════
    MOBILE LAYOUT  (≤ 768px)
    ══════════════════════════════════════════════ */
-/* ── Hide mobile-only elements on desktop ── */
-#mobile-presets     { display: none; }
-#mobile-finetune    { display: none; }
-#mobile-convert-bar { display: none; }
-#mobile-status      { display: none; }
-#mobile-result-modal{ display: none; }
+/* ═══════════════════════════════════════════════════════════
+   MOBILE UI — clean rebuild
+   ═══════════════════════════════════════════════════════════ */
 
-/* ── Sidebar width: reduce on smaller screens ── */
-:root { --sidebar-w: 320px; }
-@media (max-width: 1200px) and (min-width: 901px) {
-  :root { --sidebar-w: 280px; }
-  .btn-preset { font-size: 12px; padding: 10px 8px; }
-  .sidebar-inner { padding: 16px 14px 20px; }
-  .sidebar-actions { padding: 12px 14px 16px; }
-}
+/* Hide all old mobile elements globally */
+#mobile-presets, #mobile-finetune, #mobile-convert-bar,
+#mobile-status, #mobile-result-modal { display: none !important; }
 
-/* ── Tablet portrait (601–900px): keep sidebar, compact it ── */
+/* Hide new mobile elements on desktop */
+#m-presets, #m-bar, #m-processing, #m-result { display: none; }
+
+/* ── Tablet (601–900px): keep desktop sidebar, compact ── */
 @media (max-width: 900px) and (min-width: 601px) {
   :root { --sidebar-w: 240px; }
-  aside {
-    display: flex !important;
-    flex-direction: column;
-    width: var(--sidebar-w) !important;
-    min-width: var(--sidebar-w) !important;
-  }
+  aside { display: flex !important; flex-direction: column;
+          width: var(--sidebar-w) !important; min-width: var(--sidebar-w) !important; }
   .toggle-btn { display: none !important; }
   body { overflow: hidden; height: 100svh; }
   main { flex-direction: row !important; height: calc(100svh - 52px); }
-  /* Hide mobile-only elements on tablet */
-  #mobile-presets     { display: none !important; }
-  #mobile-convert-bar { display: none !important; }
-  #mobile-status      { display: none !important; }
-  #mobile-finetune    { display: none !important; }
-  #mobile-result-modal { display: none !important; }
-  /* Show desktop results */
+  #m-presets, #m-bar, #m-processing, #m-result { display: none !important; }
   #results-screen { display: flex !important; }
   .btn-preset { font-size: 12px; padding: 9px 6px; }
   .sidebar-inner { padding: 14px 12px 16px; }
   .sidebar-actions { padding: 10px 12px 14px; }
 }
 
-/* ══════════════════════════════════════════
-   MOBILE  ≤ 900px  (phones + tablets + landscape)
-   ══════════════════════════════════════════ */
-@media (max-width: 900px) {
+/* ── Phone (≤600px) ── */
+@media (max-width: 600px) {
 
-  /* ── Hide desktop chrome ── */
-  .app-nav-back  { display: none; }
-  .toggle-btn    { display: none !important; }
-  aside          { display: none !important; }
-  #toolbar       { display: none !important; }
+  /* Hide all desktop chrome */
+  .app-nav-back { display: none; }
+  .toggle-btn   { display: none !important; }
+  aside         { display: none !important; }
+  #toolbar      { display: none !important; }
+  #upload-screen .upload-icon-wrap { display: none; }
+  #upload-screen .upload-title     { display: none; }
+  #upload-screen .upload-sub       { display: none; }
+  .app-nav { padding: 0 10px 0 0; }
 
-  /* ── Nav ── */
-  .app-nav { padding: 0 12px 0 0; }
-  .app-nav-logo { padding: 0 14px; font-size: 15px; }
-  .app-nav-right { gap: 4px; }
-  .theme-toggle { padding: 6px 10px; font-size: 12px; }
-
-  /* ── Outer layout ── */
-  body   { overflow: hidden; height: 100svh; }
-  main   {
+  /* Body takes full screen */
+  body { overflow: hidden; height: 100svh; background: var(--bg); }
+  main {
+    display: flex;
     flex-direction: column;
     height: calc(100svh - 52px);
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
+    overflow: hidden;
+    position: relative;
   }
 
-  /* Landscape: allow more compact layout */
-  @media (max-height: 500px) {
-    #upload-screen { justify-content: flex-start; padding: 10px 14px; }
-    .upload-dropzone { min-height: 80px; padding: 14px 16px; }
-    #mobile-presets { padding: 8px 14px; gap: 6px; }
-    .mobile-preset-btn { padding: 7px 8px; font-size: 12px; }
-    #mobile-convert-bar { padding: 8px 14px; }
-    #mobile-btn-run { padding: 9px; font-size: 13px; }
-    #mobile-status { padding: 5px 14px; }
-  }
-
-  /* ── Show mobile-only elements ── */
-  #mobile-presets {
+  /* Upload screen fills space between presets and bar */
+  #upload-screen {
+    flex: 1;
     display: flex !important;
-    gap: 8px;
-    padding: 10px 14px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 20px 16px;
+    overflow: hidden;
+    gap: 12px;
+  }
+  .upload-hero { display: flex !important; width: 100%; max-width: 100%; }
+  .upload-dropzone {
+    margin: 0; width: 100%; max-width: 100%;
+    min-height: 130px; border-radius: 14px; padding: 24px 16px;
+    flex: 1;
+  }
+
+  /* Hide desktop screens on mobile */
+  #preview-screen  { display: none !important; }
+  #results-screen  { display: none !important; }
+
+  /* ── Preset bar (top, always visible) ── */
+  #m-presets {
+    display: flex !important;
+    flex-shrink: 0;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
-    flex-shrink: 0;
-  }
-  #mobile-presets::-webkit-scrollbar { display: none; }
-
-  #mobile-convert-bar {
-    display: flex !important;
+    gap: 8px;
     padding: 10px 14px;
-    gap: 10px;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
+  }
+  #m-presets::-webkit-scrollbar { display: none; }
+
+  .m-preset {
     flex-shrink: 0;
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border2);
+    background: var(--surface2);
+    color: var(--muted);
+    font-size: 13px;
+    font-family: var(--font-ui);
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all .15s;
+  }
+  .m-preset.active {
+    background: var(--accent-bg);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* ── Bottom action bar (always visible) ── */
+  #m-bar {
+    display: flex !important;
+    flex-shrink: 0;
+    flex-direction: column;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 10px 14px 12px;
+    gap: 8px;
+  }
+
+  #m-status-row {
+    display: flex;
     align-items: center;
-  }
-
-  #mobile-finetune {
-    display: flex !important;
-  }
-
-  #mobile-status {
-    display: flex !important;
-    padding: 7px 14px;
+    gap: 8px;
     font-size: 12px;
     font-family: var(--font-mono);
     color: var(--muted);
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    align-items: center;
-    gap: 8px;
+  }
+  .m-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--dim);
     flex-shrink: 0;
+    transition: background .2s;
   }
+  .m-dot.ready  { background: #22c55e; }
+  .m-dot.busy   { background: var(--accent); animation: pulse .8s infinite; }
+  .m-dot.error  { background: #ef4444; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
-  /* ── Upload screen ── */
-  #upload-screen {
-    flex: 1;
-    flex-direction: column;
-    justify-content: flex-start;
-    padding: 16px;
-    overflow-y: auto;
-    gap: 0;
-  }
-  /* Show hero but compact it */
-  .upload-hero {
-    display: flex !important;
+  #m-btn-convert {
     width: 100%;
-    max-width: 100%;
-    gap: 12px;
-    align-items: stretch;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 16px;
+    font-family: var(--font-ui);
+    font-weight: 800;
+    cursor: pointer;
+    transition: all .15s;
+    letter-spacing: .02em;
   }
-  .upload-icon-wrap { display: none; }
-  .upload-title { display: none; }
-  .upload-sub { display: none; }
-  .upload-formats { font-size: 10px; margin-top: 8px; }
-  .upload-dropzone {
-    margin: 0;
+  #m-btn-convert:disabled { opacity: .35; cursor: not-allowed; }
+  #m-btn-convert:not(:disabled):active { transform: scale(.98); }
+
+  #m-btn-cancel {
+    display: none;
     width: 100%;
-    max-width: 100%;
-    min-height: 120px;
-    border-radius: 14px;
-    padding: 22px 16px;
-    flex: 1;
-  }
-  .upload-dropzone-label { font-size: 15px; }
-  .upload-dropzone-sub { font-size: 12px; }
-
-  /* Mobile presets — Line Art full width, then 3 columns */
-  #mobile-presets {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 8px;
-    padding: 12px 16px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-    overflow: visible;
-  }
-  .mobile-preset-btn {
-    border-radius: 10px;
-    padding: 10px 8px;
-    font-size: 13px;
-    text-align: center;
-    white-space: normal;
+    padding: 11px;
+    border: 1.5px solid var(--border2);
+    border-radius: 12px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 14px;
+    font-family: var(--font-ui);
+    font-weight: 700;
+    cursor: pointer;
   }
 
-  /* ── Preview screen ── */
-  #preview-screen { flex: 1; overflow: hidden; }
-  .preview-panel  { flex: 1; }
-  #vp-preview     { flex: 1; }
-
-  /* ── Results screen — hidden on mobile, use modal ── */
-  #results-screen { display: none !important; }
-
-  /* ── Mobile result modal ── */
-  #mobile-result-modal {
+  /* ── Processing screen (full screen, z-index above everything) ── */
+  #m-processing {
     display: none;
     position: fixed;
-    inset: 0;
-    z-index: 999;
+    top: 52px; left: 0; right: 0; bottom: 0;
+    z-index: 200;
+    background: var(--bg);
+    align-items: center;
+    justify-content: center;
+  }
+  #m-processing.active { display: flex !important; }
+
+  .m-proc-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 40px 24px;
+    text-align: center;
+  }
+  .m-spinner {
+    width: 48px; height: 48px;
+    border: 4px solid var(--border2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .m-proc-title {
+    font-size: 20px;
+    font-family: var(--font-ui);
+    font-weight: 800;
+    color: var(--text);
+  }
+  .m-proc-sub {
+    font-size: 13px;
+    font-family: var(--font-mono);
+    color: var(--muted);
+  }
+  .m-proc-cancel {
+    margin-top: 8px;
+    padding: 10px 28px;
+    border: 1.5px solid var(--border2);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 14px;
+    font-family: var(--font-ui);
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  /* ── Result modal (full screen overlay) ── */
+  #m-result {
+    display: none;
+    position: fixed;
+    top: 52px; left: 0; right: 0; bottom: 0;
+    z-index: 300;
     background: var(--bg);
     flex-direction: column;
   }
-  #mobile-result-modal.visible { display: flex !important; }
+  #m-result.active { display: flex !important; }
+
+  .m-result-header {
+    display: flex;
+    align-items: center;
+    height: 52px;
+    padding: 0 14px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    gap: 10px;
+  }
+  .m-result-back, .m-result-new {
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border2);
+    background: var(--surface2);
+    color: var(--text);
+    font-size: 13px;
+    font-family: var(--font-ui);
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .m-result-title {
+    flex: 1;
+    text-align: center;
+    font-size: 15px;
+    font-family: var(--font-ui);
+    font-weight: 800;
+    color: var(--text);
+  }
+
+  /* SVG viewport — fills all available space */
+  .m-result-viewport {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    touch-action: none;
+    background-color: var(--bg);
+    background-image:
+      linear-gradient(45deg, rgba(0,0,80,.04) 25%, transparent 25%),
+      linear-gradient(-45deg, rgba(0,0,80,.04) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, rgba(0,0,80,.04) 75%),
+      linear-gradient(-45deg, transparent 75%, rgba(0,0,80,.04) 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+  }
+  .m-result-inner {
+    position: absolute;
+    top: 0; left: 0;
+    transform-origin: 0 0;
+    line-height: 0;
+  }
+  .m-result-inner svg {
+    display: block;
+  }
+
+  /* Download actions */
+  .m-result-actions {
+    flex-shrink: 0;
+    padding: 12px 14px 16px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .m-dl-primary {
+    width: 100%;
+    padding: 15px;
+    border: none;
+    border-radius: 12px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 16px;
+    font-family: var(--font-ui);
+    font-weight: 800;
+    cursor: pointer;
+    letter-spacing: .02em;
+  }
+  .m-dl-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 8px;
+  }
+  .m-dl-btn {
+    padding: 11px 6px;
+    border: 1.5px solid var(--border2);
+    border-radius: 10px;
+    background: var(--surface2);
+    color: var(--text);
+    font-size: 13px;
+    font-family: var(--font-ui);
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+  }
 }
 
 
 
-/* ── Mobile fine-tune ── */
-#mobile-finetune {
-  display: none;
-  flex-direction: column;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-#mobile-finetune-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 16px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 13px;
-  font-family: var(--font-mono);
-  color: var(--muted);
-  font-weight: 500;
-  width: 100%;
-  text-align: left;
-}
-#mobile-finetune-panel {
-  display: none;
-  flex-direction: column;
-  gap: 10px;
-  padding: 8px 16px 14px;
-}
-#mobile-finetune-panel.open { display: flex; }
-.mft-row {
-  display: grid;
-  grid-template-columns: 110px 1fr 30px;
-  align-items: center;
-  gap: 10px;
-}
-.mft-row label {
-  font-size: 12px;
-  color: var(--muted);
-  font-family: var(--font-ui);
-  font-weight: 600;
-}
-.mft-row input[type=range] {
-  width: 100%;
-  accent-color: var(--accent);
-}
-.mft-row span {
-  font-size: 12px;
-  font-family: var(--font-mono);
-  color: var(--dim);
-  text-align: right;
-}
-
-/* ── Mobile preset pills ── */
-.mobile-preset-btn {
-  flex-shrink: 0;
-  padding: 8px 18px;
-  border-radius: 20px;
-  border: 1.5px solid var(--border2);
-  background: var(--surface2);
-  color: var(--muted);
-  font-size: 13px;
-  font-family: var(--font-ui);
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all .15s;
-}
-.mobile-preset-btn.active {
-  background: var(--accent-bg);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-/* ── Mobile convert button ── */
-#mobile-btn-run {
-  flex: 1;
-  padding: 12px;
-  border: none;
-  border-radius: 10px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 15px;
-  font-family: var(--font-ui);
-  font-weight: 800;
-  cursor: pointer;
-  transition: all .15s;
-}
-#mobile-btn-run:disabled { opacity: .35; cursor: not-allowed; }
-#mobile-btn-run:not(:disabled):hover { background: var(--accent2); }
-#mobile-btn-cancel {
-  display: none;
-  padding: 12px 16px;
-  border: 1.5px solid var(--border2);
-  border-radius: 10px;
-  background: transparent;
-  color: var(--muted);
-  font-size: 14px;
-  font-family: var(--font-ui);
-  font-weight: 700;
-  cursor: pointer;
-}
-
-/* ── Mobile result modal internals ── */
-.mrm-header {
-  height: 52px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
-  gap: 12px;
-  flex-shrink: 0;
-}
-.mrm-title { font-size: 15px; font-weight: 800; color: var(--text); flex: 1; }
-.mrm-close {
-  background: none; border: none; font-size: 22px;
-  color: var(--muted); cursor: pointer; padding: 4px; line-height: 1;
-}
-.mrm-close:hover { color: var(--text); }
-.mrm-zoom-bar {
-  display: flex; gap: 8px; padding: 10px 16px;
-  background: var(--surface); border-bottom: 1px solid var(--border);
-  flex-shrink: 0; align-items: center;
-}
-.mrm-zoom-btn {
-  padding: 7px 14px; border: 1.5px solid var(--border2);
-  border-radius: 8px; background: var(--surface2); color: var(--text);
-  font-size: 14px; font-weight: 700; font-family: var(--font-ui); cursor: pointer;
-}
-.mrm-zoom-label {
-  font-size: 13px; font-family: var(--font-mono);
-  color: var(--muted); min-width: 45px; text-align: center;
-}
-.mrm-spacer { flex: 1; }
-.mrm-meta { font-size: 11px; font-family: var(--font-mono); color: var(--dim); }
-.mrm-viewport {
-  flex: 1; overflow: hidden; position: relative;
-  background-color: var(--bg);
-  background-image:
-    linear-gradient(45deg,rgba(0,0,80,.04) 25%,transparent 25%),
-    linear-gradient(-45deg,rgba(0,0,80,.04) 25%,transparent 25%),
-    linear-gradient(45deg,transparent 75%,rgba(0,0,80,.04) 75%),
-    linear-gradient(-45deg,transparent 75%,rgba(0,0,80,.04) 75%);
-  background-size: 20px 20px;
-  background-position: 0 0,0 10px,10px -10px,-10px 0;
-  touch-action: none;
-}
-.mrm-inner { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
-.mrm-actions {
-  padding: 12px 16px; background: var(--surface);
-  display: grid; grid-template-columns: 1fr 1fr; gap: 8px; flex-shrink: 0;
-}
-.mrm-btn-dl {
-  padding: 12px; border: 1.5px solid var(--border2);
-  border-radius: 10px; background: var(--surface2); color: var(--text);
-  font-size: 14px; font-family: var(--font-ui); font-weight: 800;
-  cursor: pointer; transition: all .15s; text-align: center;
-}
-.mrm-btn-dl:hover { border-color: var(--accent); color: var(--accent); }
-.mrm-btn-dl.primary {
-  background: var(--accent); color: #fff;
-  border-color: var(--accent); grid-column: 1 / -1;
-}
-.mrm-btn-dl.primary:hover { background: var(--accent2); }
-.mrm-btn-copy {
-  grid-column: 1 / -1; padding: 9px;
-  border: 1.5px solid var(--border); border-radius: 9px;
-  background: transparent; color: var(--muted);
-  font-size: 13px; font-family: var(--font-ui); font-weight: 700;
-  cursor: pointer; transition: all .15s;
-}
-.mrm-btn-copy:hover { border-color: var(--accent); color: var(--accent); }
-.mrm-btn-new {
-  grid-column: 1 / -1; padding: 9px; border: none;
-  border-radius: 9px; background: transparent; color: var(--dim);
-  font-size: 13px; font-family: var(--font-mono); cursor: pointer;
-}
 
 
 </style>
@@ -1022,60 +979,63 @@ body { height: calc(100vh); }
 
 <main>
 
-  <!-- ═══ MOBILE-ONLY UI (inside main, above all screens) ═══ -->
-  <!-- Mobile presets bar -->
-  <div id="mobile-presets">
-    <button class="mobile-preset-btn active" onclick="mobilePreset('lineart')">✏ Line Art</button>
-    <button class="mobile-preset-btn" onclick="mobilePreset('low')">Low</button>
-    <button class="mobile-preset-btn" onclick="mobilePreset('medium')">Medium</button>
-    <button class="mobile-preset-btn" onclick="mobilePreset('detailed')">Very Detailed</button>
+  <!-- ═══════════════════════════════════════════════════
+       MOBILE UI — clean rebuild
+       States: upload | processing | result (modal)
+       ═══════════════════════════════════════════════════ -->
+
+  <!-- MOBILE TOP BAR: presets always visible -->
+  <div id="m-presets">
+    <button class="m-preset active" onclick="mPreset('lineart')">✏ Line Art</button>
+    <button class="m-preset" onclick="mPreset('low')">Low</button>
+    <button class="m-preset" onclick="mPreset('medium')">Medium</button>
+    <button class="m-preset" onclick="mPreset('detailed')">Detailed</button>
   </div>
-  <!-- Mobile fine-tune panel (collapsible) -->
-  <div id="mobile-finetune">
-    <button id="mobile-finetune-toggle" onclick="toggleMobileFinetune()">
-      <span>⚙ Fine-tune settings</span>
-      <span id="mobile-finetune-arrow">▼</span>
-    </button>
-    <div id="mobile-finetune-panel">
-      <div class="mft-row">
-        <label>Smooth edges</label>
-        <input type="range" id="m-blur-radius" min="0" max="2" step="0.1" value="0.8"
-          oninput="syncSlider('blur-radius','m-blur-radius',this.value,'v-br')"/>
-        <span id="m-v-br">0.8</span>
-      </div>
-      <div class="mft-row">
-        <label>Color depth</label>
-        <input type="range" id="m-color-precision" min="2" max="8" step="1" value="8"
-          oninput="syncSlider('color-precision','m-color-precision',this.value,'v-cp')"/>
-        <span id="m-v-cp">8</span>
-      </div>
-      <div class="mft-row">
-        <label>Shape separation</label>
-        <input type="range" id="m-layer-difference" min="1" max="32" step="1" value="1"
-          oninput="syncSlider('layer-difference','m-layer-difference',this.value,'v-ld')"/>
-        <span id="m-v-ld">1</span>
-      </div>
-      <div class="mft-row">
-        <label>Clean up noise</label>
-        <input type="range" id="m-filter-speckle" min="1" max="32" step="1" value="6"
-          oninput="syncSlider('filter-speckle','m-filter-speckle',this.value,'v-fs')"/>
-        <span id="m-v-fs">6</span>
+
+  <!-- MOBILE BOTTOM BAR: convert / status — always visible -->
+  <div id="m-bar">
+    <div id="m-status-row">
+      <div class="m-dot" id="m-dot"></div>
+      <span id="m-status">Upload an image to start</span>
+    </div>
+    <button id="m-btn-convert" disabled onclick="mConvert()">Convert →</button>
+    <button id="m-btn-cancel" onclick="mCancel()">✕</button>
+  </div>
+
+  <!-- MOBILE PROCESSING SCREEN: full screen, replaces everything -->
+  <div id="m-processing">
+    <div class="m-proc-inner">
+      <div class="m-spinner"></div>
+      <div class="m-proc-title">Converting…</div>
+      <div class="m-proc-sub" id="m-proc-sub">Preparing image</div>
+      <button class="m-proc-cancel" onclick="mCancel()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- MOBILE RESULT MODAL: full screen overlay -->
+  <div id="m-result">
+    <div class="m-result-header">
+      <button class="m-result-back" onclick="mResultClose()">← Back</button>
+      <span class="m-result-title">Result</span>
+      <button class="m-result-new" onclick="mNewImage()">New ↑</button>
+    </div>
+    <div class="m-result-viewport" id="m-vp" ontouchstart="mTouchStart(event)" ontouchmove="mTouchMove(event)" ontouchend="mTouchEnd(event)">
+      <div class="m-result-inner" id="m-inner"></div>
+    </div>
+    <div class="m-result-actions">
+      <button class="m-dl-primary" onclick="exportAs('svg')">↓ Download SVG</button>
+      <div class="m-dl-grid">
+        <button class="m-dl-btn" onclick="exportAs('pdf')">PDF</button>
+        <button class="m-dl-btn" onclick="exportAs('png')">PNG</button>
+        <button class="m-dl-btn" onclick="exportAs('jpg')">JPG</button>
+        <button class="m-dl-btn" onclick="copySvgCode()">Copy SVG</button>
       </div>
     </div>
   </div>
 
-  <!-- Mobile convert + status bar -->
-  <div id="mobile-convert-bar">
-    <button id="mobile-btn-run" disabled onclick="mobileRunVectorize()">Convert →</button>
-    <button id="mobile-btn-cancel" onclick="cancelConvert()">✕</button>
-  </div>
-  <div id="mobile-status">
-    <div class="status-dot" id="mobile-status-dot"></div>
-    <span id="mobile-status-text">Upload an image to get started</span>
-  </div>
-  <!-- ═══ END MOBILE-ONLY ═══ -->
+  <!-- END MOBILE UI -->
 
-  <!-- Toolbar (shown only in results view) -->
+    <!-- Toolbar (shown only in results view) -->
   <div class="toolbar" id="toolbar" style="display:none;">
     <span>Zoom:</span>
     <button class="toolbar-btn" onclick="setZoom(zoom-.25)">−</button>
@@ -1290,207 +1250,195 @@ function saveSettingsSnapshot() {
 // ══════════════════════════════════════════════════════
 // MOBILE LOGIC
 // ══════════════════════════════════════════════════════
-const isMobile = () => window.innerWidth <= 900;
+const isMobile = () => window.innerWidth <= 600; // updated to match mobile breakpoint
 
 // ── Mobile preset selection ──
-function mobilePreset(name) {
-  applyPreset(name); // reuse desktop function
-  document.querySelectorAll('.mobile-preset-btn').forEach(b => {
+// ═══════════════════════════════════════════════════════════
+// MOBILE UI — clean rebuild
+// States: upload → processing → result
+// ═══════════════════════════════════════════════════════════
+
+const _isMob = () => window.innerWidth <= 600;
+
+// ── Preset selection ─────────────────────────────────────────
+function mPreset(name) {
+  applyPreset(name);
+  document.querySelectorAll('.m-preset').forEach(b => {
     b.classList.toggle('active', b.getAttribute('onclick').includes(name));
   });
 }
 
-// ── Mobile status sync ──
-function mobileSetStatus(msg, state='') {
-  if (!isMobile()) return;
-  const dot = $('mobile-status-dot');
-  const txt = $('mobile-status-text');
-  if (dot) { dot.className = 'status-dot' + (state ? ' '+state : ''); }
-  if (txt) { txt.textContent = msg; }
+// ── Status helpers ────────────────────────────────────────────
+function mSetStatus(text, state) {
+  // state: '' | 'ready' | 'busy' | 'error'
+  const dot = document.getElementById('m-dot');
+  const el  = document.getElementById('m-status');
+  if (dot) { dot.className = 'm-dot' + (state ? ' ' + state : ''); }
+  if (el)  { el.textContent = text; }
 }
 
-// ── Mobile convert button ──
-function mobileRunVectorize() {
-  $('mobile-btn-run').style.display = 'none';
-  $('mobile-btn-cancel').style.display = 'block';
-  runVectorize(); // reuse desktop function
+function mEnableConvert(yes) {
+  const btn = document.getElementById('m-btn-convert');
+  if (btn) btn.disabled = !yes;
 }
 
-// ── Mobile enable/disable run button ──
-function mobileSyncRunBtn(enabled) {
-  if (!isMobile()) return;
-  const btn = $('mobile-btn-run');
-  if (btn) {
-    btn.disabled = !enabled;
-    btn.style.display = 'block';
-    $('mobile-btn-cancel').style.display = 'none';
-  }
+// ── Convert ───────────────────────────────────────────────────
+function mConvert() {
+  if (!_isMob()) return;
+  // Show processing screen
+  document.getElementById('m-processing').classList.add('active');
+  // Sub-messages cycling
+  const msgs = ['Preparing image…', 'Tracing paths…', 'Optimising…'];
+  let mi = 0;
+  const sub = document.getElementById('m-proc-sub');
+  if (sub) sub.textContent = msgs[0];
+  window._mProcTimer = setInterval(() => {
+    mi = (mi + 1) % msgs.length;
+    if (sub) sub.textContent = msgs[mi];
+  }, 2500);
+  // Run the actual conversion
+  runVectorize();
 }
 
-// ── Open mobile result modal ──
-function openMobileResult(svgText, paths, elapsed) {
-  if (!isMobile()) return;
-  const modal = $('mobile-result-modal');
-  const inner = $('mrm-inner');
-  modal.classList.add('visible');
-  // Render SVG
+// ── Cancel ────────────────────────────────────────────────────
+function mCancel() {
+  clearInterval(window._mProcTimer);
+  document.getElementById('m-processing').classList.remove('active');
+  cancelConvert();
+  mSetStatus('Cancelled', 'error');
+  setTimeout(() => mSetStatus(currentFile ? 'Ready — tap Convert' : 'Upload an image to start', ''), 2000);
+}
+
+// ── Show result ───────────────────────────────────────────────
+// Touch state
+let _mZoom = 1, _mPanX = 0, _mPanY = 0;
+let _mDragging = false, _mLastX = 0, _mLastY = 0, _mLastDist = null;
+
+function mShowResult(svgText, paths, elapsed) {
+  if (!_isMob()) return;
+
+  // Stop processing screen
+  clearInterval(window._mProcTimer);
+  document.getElementById('m-processing').classList.remove('active');
+
+  // Populate SVG
+  const inner = document.getElementById('m-inner');
+  const vp    = document.getElementById('m-vp');
   inner.innerHTML = svgText;
-  const svgEl = inner.querySelector('svg');
-  if (svgEl) {
-    svgEl.style.display = 'block';
-    const vw = $('mrm-viewport').clientWidth;
-    const vh = $('mrm-viewport').clientHeight;
-    const sw = parseFloat(svgEl.getAttribute('width')) || vw;
-    const sh = parseFloat(svgEl.getAttribute('height')) || vh;
-    mrmZoomVal = Math.min(vw/sw, vh/sh) * 0.95;
-    mrmPanX = (vw - sw*mrmZoomVal)/2;
-    mrmPanY = (vh - sh*mrmZoomVal)/2;
-    mrmApplyTransform();
-  }
-  $('mrm-meta').textContent = paths + ' paths · ' + elapsed + 's';
-  $('mrm-zoom-label').textContent = Math.round(mrmZoomVal*100)+'%';
-}
 
-// ── Mobile result modal zoom ──
-let mrmZoomVal = 1, mrmPanX = 0, mrmPanY = 0;
-let mrmLastDist = null, mrmDragging = false, mrmLastX = 0, mrmLastY = 0;
-
-function mrmApplyTransform() {
-  $('mrm-inner').style.transform = `translate(${mrmPanX}px,${mrmPanY}px) scale(${mrmZoomVal})`;
-  $('mrm-zoom-label').textContent = Math.round(mrmZoomVal*100)+'%';
-}
-
-function mrmZoom(delta) {
-  const vp = $('mrm-viewport');
-  const cx = vp.clientWidth/2, cy = vp.clientHeight/2;
-  const newZ = Math.max(0.1, Math.min(10, mrmZoomVal + delta));
-  mrmPanX = cx - (cx - mrmPanX) * (newZ/mrmZoomVal);
-  mrmPanY = cy - (cy - mrmPanY) * (newZ/mrmZoomVal);
-  mrmZoomVal = newZ;
-  mrmApplyTransform();
-}
-
-function mrmFit() {
-  const vp = $('mrm-viewport');
-  const inner = $('mrm-inner');
   const svgEl = inner.querySelector('svg');
   if (!svgEl) return;
+  svgEl.style.display = 'block';
+
+  // Get natural dimensions from viewBox or attributes
   let sw, sh;
   const vb = svgEl.getAttribute('viewBox');
-  if (vb) { const p = vb.trim().split(/[\s,]+/); sw = parseFloat(p[2]); sh = parseFloat(p[3]); }
-  if (!sw || isNaN(sw)) sw = parseFloat(svgEl.getAttribute('width'));
-  if (!sh || isNaN(sh)) sh = parseFloat(svgEl.getAttribute('height'));
-  const nw = sw || vp.clientWidth;
-  const nh = sh || vp.clientHeight;
-  mrmZoomVal = Math.min(vp.clientWidth/nw, vp.clientHeight/nh) * 0.92;
-  mrmZoomVal = Math.max(0.05, Math.min(mrmZoomVal, 10));
-  mrmPanX = (vp.clientWidth - nw*mrmZoomVal)/2;
-  mrmPanY = (vp.clientHeight - nh*mrmZoomVal)/2;
-  mrmApplyTransform();
-  $('mrm-zoom-label').textContent = Math.round(mrmZoomVal*100)+'%';
-}
+  if (vb) {
+    const pts = vb.trim().split(/[\s,]+/);
+    sw = parseFloat(pts[2]);
+    sh = parseFloat(pts[3]);
+  }
+  if (!sw || isNaN(sw)) sw = parseFloat(svgEl.getAttribute('width')) || 500;
+  if (!sh || isNaN(sh)) sh = parseFloat(svgEl.getAttribute('height')) || 500;
 
-// Touch pan on modal viewport — init after DOM ready
-function initMrmTouch() {
-  const el = document.getElementById('mrm-viewport');
-  if (!el) return;
-  el.addEventListener('touchstart', e => {
-    if (e.touches.length === 1) {
-      mrmDragging = true;
-      mrmLastX = e.touches[0].clientX;
-      mrmLastY = e.touches[0].clientY;
-      mrmLastDist = null;
-    } else if (e.touches.length === 2) {
-      mrmDragging = false;
-      mrmLastDist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-    }
-    e.preventDefault();
-  }, { passive: false });
-  el.addEventListener('touchmove', e => {
-    if (e.touches.length === 1 && mrmDragging) {
-      mrmPanX += e.touches[0].clientX - mrmLastX;
-      mrmPanY += e.touches[0].clientY - mrmLastY;
-      mrmLastX = e.touches[0].clientX;
-      mrmLastY = e.touches[0].clientY;
-      mrmApplyTransform();
-    } else if (e.touches.length === 2 && mrmLastDist) {
-      const dist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      const scale = dist / mrmLastDist;
-      const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-      const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-      mrmPanX = cx - (cx - mrmPanX) * scale;
-      mrmPanY = cy - (cy - mrmPanY) * scale;
-      mrmZoomVal = Math.max(0.1, Math.min(10, mrmZoomVal * scale));
-      mrmLastDist = dist;
-      mrmApplyTransform();
-    }
-    e.preventDefault();
-  }, { passive: false });
-  el.addEventListener('touchend', () => { mrmDragging = false; mrmLastDist = null; });
-}
+  // Set explicit pixel dimensions
+  svgEl.setAttribute('width',  sw);
+  svgEl.setAttribute('height', sh);
 
-// ── Close mobile result modal ──
-function closeMobileResult() {
-  $('mobile-result-modal').classList.remove('visible');
-  // Show preview screen again
-  if (imgW) showPreviewScreen();
-  mobileSyncRunBtn(false);
-  // Reset convert button — show reprocess
-  $('mobile-btn-run').textContent = 'Convert again →';
-  $('mobile-btn-run').disabled = false;
-  $('mobile-btn-run').style.display = 'block';
-}
-
-// ── Mobile fine-tune toggle ──
-function toggleMobileFinetune() {
-  const panel = $('mobile-finetune-panel');
-  const arrow = $('mobile-finetune-arrow');
-  const isOpen = panel.classList.contains('open');
-  panel.classList.toggle('open', !isOpen);
-  arrow.textContent = isOpen ? '▼' : '▲';
-}
-
-// ── Sync mobile sliders with desktop sliders ──
-function syncSlider(desktopId, mobileId, val, valId) {
-  // Update desktop slider
-  const desktop = $(desktopId);
-  if (desktop) desktop.value = val;
-  // Update display values
-  const v = $(valId);
-  if (v) v.textContent = val;
-  const mv = $('m-' + valId);
-  if (mv) mv.textContent = val;
-  // Mark settings changed
-  markSettingsChanged();
-}
-
-// Sync desktop → mobile when desktop sliders change
-function syncDesktopToMobile() {
-  const pairs = [
-    ['blur-radius', 'm-blur-radius', 'v-br'],
-    ['color-precision', 'm-color-precision', 'v-cp'],
-    ['layer-difference', 'm-layer-difference', 'v-ld'],
-    ['filter-speckle', 'm-filter-speckle', 'v-fs'],
-  ];
-  pairs.forEach(([dId, mId, vId]) => {
-    const d = $(dId), m = $(mId);
-    if (d && m) m.value = d.value;
-    const mv = $('m-' + vId);
-    if (mv && d) mv.textContent = d.value;
+  // Fit to viewport — wait one frame so layout is complete
+  requestAnimationFrame(() => {
+    const vw = vp.clientWidth  || window.innerWidth;
+    const vh = vp.clientHeight || Math.round(window.innerHeight * 0.55);
+    _mZoom = Math.min(vw / sw, vh / sh) * 0.92;
+    _mZoom = Math.max(0.05, Math.min(_mZoom, 10));
+    _mPanX = (vw - sw * _mZoom) / 2;
+    _mPanY = (vh - sh * _mZoom) / 2;
+    _mApplyTransform();
   });
+
+  // Show modal
+  document.getElementById('m-result').classList.add('active');
+  mSetStatus('Done in ' + elapsed + 's · ' + paths + ' paths', 'ready');
 }
 
-// ── Mobile new image ──
-function mobileNewImage() {
-  $('mobile-result-modal').classList.remove('visible');
+function _mApplyTransform() {
+  const inner = document.getElementById('m-inner');
+  if (inner) inner.style.transform = `translate(${_mPanX}px,${_mPanY}px) scale(${_mZoom})`;
+}
+
+// ── Touch gestures in result viewport ─────────────────────────
+function mTouchStart(e) {
+  if (e.touches.length === 1) {
+    _mDragging = true;
+    _mLastX = e.touches[0].clientX;
+    _mLastY = e.touches[0].clientY;
+    _mLastDist = null;
+  } else if (e.touches.length === 2) {
+    _mDragging = false;
+    _mLastDist = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+  }
+  e.preventDefault();
+}
+function mTouchMove(e) {
+  if (e.touches.length === 1 && _mDragging) {
+    _mPanX += e.touches[0].clientX - _mLastX;
+    _mPanY += e.touches[0].clientY - _mLastY;
+    _mLastX = e.touches[0].clientX;
+    _mLastY = e.touches[0].clientY;
+    _mApplyTransform();
+  } else if (e.touches.length === 2 && _mLastDist) {
+    const dist = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+    const scale = dist / _mLastDist;
+    const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    _mPanX = cx - (cx - _mPanX) * scale;
+    _mPanY = cy - (cy - _mPanY) * scale;
+    _mZoom = Math.max(0.05, Math.min(_mZoom * scale, 10));
+    _mLastDist = dist;
+    _mApplyTransform();
+  }
+  e.preventDefault();
+}
+function mTouchEnd() { _mDragging = false; _mLastDist = null; }
+
+// ── Close result / new image ───────────────────────────────────
+function mResultClose() {
+  document.getElementById('m-result').classList.remove('active');
+  mSetStatus('Ready — tap Convert again', 'ready');
+  mEnableConvert(true);
+}
+
+function mNewImage() {
+  document.getElementById('m-result').classList.remove('active');
   resetToUpload();
 }
+
+// ── Hook into desktop runVectorize result path ─────────────────
+// Called when result arrives — show mobile result if on mobile
+function mOnResult(svgText, paths, elapsed) {
+  if (_isMob()) mShowResult(svgText, paths, elapsed);
+}
+
+// ── Sync mobile UI when file loaded ───────────────────────────
+function mOnFileLoaded() {
+  if (!_isMob()) return;
+  mEnableConvert(true);
+  mSetStatus('Ready — tap Convert', 'ready');
+}
+
+// ── Init ──────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  if (_isMob()) {
+    mPreset('lineart');
+    mSetStatus('Upload an image to start', '');
+  }
+});
 
 // ── Pan & Zoom ─────────────────────────────────────────────
 let zoom=1,panX=0,panY=0,imgW=0,imgH=0;
@@ -1601,6 +1549,7 @@ function load(f) {
       $('img-meta').textContent = imgW + '×' + imgH + ' · ' + fmt(f.size);
       showPreviewScreen();
       setTimeout(fitPreview, 100);
+      mOnFileLoaded(); // mobile: enable convert button
       setStatus('Choose a style and click Convert', 'ready');
       $('btn-run').disabled = false;
       mobileSyncRunBtn(true);
@@ -1881,6 +1830,8 @@ async function runVectorize(){
     const modeTag = data.engine_mode && data.engine_mode !== 'color' ? ` · ${data.engine_mode}` : '';
     setStatus(`Done in ${data.elapsed}s${cacheTag}${modeTag}`,'ready');
     $('export-section').style.display='flex';
+    // Mobile: show result modal
+    mOnResult(data.svg, data.paths, data.elapsed);
 
     // Setup reprocess button
     hasResult=true;
@@ -2013,32 +1964,6 @@ async function loadSampleFromUrl() {
 window.addEventListener('DOMContentLoaded', loadSampleFromUrl);
 
 </script>
-<!-- Mobile result modal (fixed overlay) -->
-<div id="mobile-result-modal">
-  <div class="mrm-header">
-    <div class="mrm-title">Result</div>
-    <button class="mrm-close" onclick="closeMobileResult()">✕</button>
-  </div>
-  <div class="mrm-zoom-bar">
-    <button class="mrm-zoom-btn" onclick="mrmZoom(-0.25)">−</button>
-    <span class="mrm-zoom-label" id="mrm-zoom-label">100%</span>
-    <button class="mrm-zoom-btn" onclick="mrmZoom(0.25)">+</button>
-    <button class="mrm-zoom-btn" onclick="mrmFit()">Fit</button>
-    <div class="mrm-spacer"></div>
-    <span class="mrm-meta" id="mrm-meta"></span>
-  </div>
-  <div class="mrm-viewport" id="mrm-viewport">
-    <div class="mrm-inner" id="mrm-inner"></div>
-  </div>
-  <div class="mrm-actions">
-    <button class="mrm-btn-dl primary" onclick="exportAs('svg')">↓ Download SVG</button>
-    <button class="mrm-btn-dl" onclick="exportAs('pdf')">PDF</button>
-    <button class="mrm-btn-dl" onclick="exportAs('png')">PNG</button>
-    <button class="mrm-btn-dl" onclick="exportAs('jpg')">JPG</button>
-    <button class="mrm-btn-copy" onclick="copySvgCode()">⎘ Copy SVG code</button>
-    <button class="mrm-btn-new" onclick="mobileNewImage()">+ Convert a new image</button>
-  </div>
-</div>
 
 </body>
 </html>
