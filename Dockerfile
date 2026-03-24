@@ -24,5 +24,4 @@ RUN mkdir -p outputs uploads
 
 EXPOSE 8080
 
-CMD gunicorn --bind 0.0.0.0:$PORT --workers 1 --timeout 300 --graceful-timeout 300 app:app
- 
+CMD gunicorn --bind 0.0.0.0:$PORT --workers 1 --timeout 300 --graceful-timeout 300 --log-level debug --capture-output --enable-stdio-inheritance app:app

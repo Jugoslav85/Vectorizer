@@ -19,9 +19,15 @@ import re
 import tempfile
 import os
 import math
-import struct
-import zlib
-import vtracer
+try:
+    import vtracer
+    print("[engine] vtracer imported OK", flush=True)
+except Exception as _e:
+    import traceback as _tb
+    print(f"[engine] FATAL: vtracer import failed: {_e}", flush=True)
+    _tb.print_exc()
+    vtracer = None  # will fail loudly at runtime
+
 from PIL import Image, ImageFilter, ImageOps, ImageEnhance, ImageDraw
 
 MAX_PIXELS   = 2_000_000

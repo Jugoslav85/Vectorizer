@@ -4,7 +4,14 @@ from flask import Flask, request, jsonify, send_from_directory, send_file, Respo
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect
-from vtracer_engine import vectorize
+try:
+    from vtracer_engine import vectorize
+    print("[startup] vtracer_engine imported OK", flush=True)
+except Exception as _import_err:
+    import traceback as _tb
+    print(f"[startup] FATAL: vtracer_engine import failed: {_import_err}", flush=True)
+    _tb.print_exc()
+    raise
 
 BASE_DIR    = Path(__file__).parent
 OUTPUT_DIR  = BASE_DIR / "outputs"
