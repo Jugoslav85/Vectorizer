@@ -1233,12 +1233,12 @@ function toggleAdvanced() {
 
 // ── Presets ────────────────────────────────────────────────
 const PRESETS = {
-  // Line art — pure B&W binary mode
-  lineart:  { cp:4, ld:1,  fs:4,  br:0.3,  mode:'lineart' },
-  // Colour complexity levels
-  low:      { cp:4, ld:8,  fs:16, br:1.0,  mode:'color'   },
-  medium:   { cp:6, ld:3,  fs:8,  br:0.8,  mode:'color'   },
-  detailed: { cp:8, ld:1,  fs:2,  br:0.5,  mode:'color'   },
+  // Line art — pure B&W binary mode (corner_threshold handled by engine at 60)
+  lineart:  { cp:4, ld:1,  fs:4,  br:0.3,  mode:'lineart', ct:60 },
+  // Colour complexity levels — ct controls smoothness (higher = smoother curves)
+  low:      { cp:4, ld:8,  fs:16, br:1.0,  mode:'color',   ct:45 },
+  medium:   { cp:6, ld:3,  fs:8,  br:0.8,  mode:'color',   ct:30 },
+  detailed: { cp:8, ld:1,  fs:2,  br:0.5,  mode:'color',   ct:15 },
 };
 // Track active engine mode
 let engineMode = 'auto';
@@ -1259,6 +1259,7 @@ function applyPreset(name) {
   set('color-precision', 'v-cp', p.cp);
   set('layer-difference','v-ld', p.ld);
   set('filter-speckle',  'v-fs', p.fs);
+  window._currentCt = p.ct !== undefined ? p.ct : 30;
   markSettingsChanged();
 }
 
@@ -1809,6 +1810,7 @@ async function runVectorize(){
   const fd=new FormData();
   fd.append('file',currentFile);
   fd.append('engine_mode',      engineMode);
+  fd.append('corner_threshold',  window._currentCt !== undefined ? window._currentCt : 30);
   fd.append('blur_radius',      $('blur-radius').value);
   fd.append('posterize_bits',   $('posterize-bits').value);
   fd.append('unsharp_percent',  $('unsharp-percent').value);

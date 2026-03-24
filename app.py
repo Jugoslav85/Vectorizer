@@ -143,6 +143,7 @@ def api_vectorize():
         "unsharp_percent":  gi("unsharp_percent",   90),
         "unsharp_radius":   gf("unsharp_radius",    0.5),
         "simplify_epsilon": gf("simplify_epsilon",  0.3),
+        "corner_threshold": gi("corner_threshold",  30),
     }
 
     session_id = _get_session_id(request)
@@ -181,6 +182,7 @@ def api_vectorize():
             filter_speckle    = settings["filter_speckle"],
             color_precision   = settings["color_precision"],
             layer_difference  = settings["layer_difference"],
+            corner_threshold  = settings["corner_threshold"],
         )
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:

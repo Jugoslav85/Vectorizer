@@ -651,9 +651,12 @@ def vectorize(image_data: bytes,
                                       unsharp_percent, unsharp_threshold, blur_radius)
         kwargs.setdefault('colormode', 'color')
         kwargs.setdefault('mode', 'spline')
-        kwargs.setdefault('corner_threshold', 1)
-        kwargs.setdefault('length_threshold', 3.5)
-        kwargs.setdefault('splice_threshold', 1)
+        # Higher corner_threshold = smoother curves (fewer corners).
+        # 30 is a good default — same principle that gives lineart its smooth look.
+        kwargs.setdefault('corner_threshold', 30)
+        kwargs.setdefault('length_threshold', 4.0)
+        kwargs.setdefault('splice_threshold', 45)
+        kwargs.setdefault('path_precision', 3)
         print(f'[engine] color pipeline (blur={blur_radius}, posterize={posterize_bits}bits)', flush=True)
 
     inp = out = None
