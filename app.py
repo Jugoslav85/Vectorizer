@@ -1,4 +1,4 @@
-import uuid, time, traceback, hashlib, json, os
+import uuid, time, traceback, hashlib, json, os, hmac as _hmac
 from pathlib import Path
 from flask import Flask, request, jsonify, send_from_directory, send_file, Response, make_response
 from flask_limiter import Limiter
@@ -23,6 +23,26 @@ ALLOWED        = {".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif"}
 MAX_FILE_BYTES = 20 * 1024 * 1024
 CACHE_TTL      = 3600
 _cache: dict   = {}
+
+# ── License key validation ────────────────────────────────────────────────────
+# Keys are HMAC-SHA256 signed — no database required
+# Format: SCAYLR-{UID4}-{SIG4}-{SIG4}-{SIG4}
+_KEY_SECRET = os.environ.get("LICENSE_SECRET", "scaylr-key-secret-change-in-prod")
+
+def _validate_key(key: str) -> bool:
+    """Validate a SCAYLR license key using HMAC without a database."""
+    try:
+        parts = key.upper().strip().split("-")
+        if len(parts) != 5 or parts[0] != "SCAYLR":
+            return False
+        uid = parts[1]
+        sig_provided = parts[2] + parts[3] + parts[4]
+        sig_expected = _hmac.new(
+            _KEY_SECRET.encode(), uid.encode(), hashlib.sha256
+        ).hexdigest()[:12].upper()
+        return _hmac.compare_digest(sig_provided, sig_expected)
+    except Exception:
+        return False
 
 def _get_session_id(req):
     return req.cookies.get("vsid") or uuid.uuid4().hex
@@ -106,6 +126,15 @@ def api_sample_image(filename):
     if not p.exists():
         return jsonify({"error": "Not found"}), 404
     return send_file(p)
+
+@app.route("/api/validate-key", methods=["POST"])
+def api_validate_key():
+    data = request.get_json(silent=True) or {}
+    key  = str(data.get("key", "")).strip()
+    if not key:
+        return jsonify({"valid": False, "error": "No key provided"}), 400
+    valid = _validate_key(key)
+    return jsonify({"valid": valid, "plan": "pro" if valid else "free"})
 
 @app.route("/api/vectorize", methods=["POST"])
 @limiter.limit("30 per hour;5 per minute")
@@ -230,6 +259,10 @@ def api_download(job_id):
 @app.route("/api/download-pdf/<job_id>")
 def api_download_pdf(job_id):
     if not job_id.isalnum(): return jsonify({"error": "Bad ID"}), 400
+    # Validate Pro key passed as X-License-Key header
+    key = request.headers.get("X-License-Key", "")
+    if not _validate_key(key):
+        return jsonify({"error": "Pro plan required for PDF export", "upgrade": True}), 403
     p = OUTPUT_DIR / f"{job_id}.svg"
     if not p.exists(): return jsonify({"error": "Not found"}), 404
     try:

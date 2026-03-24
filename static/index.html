@@ -922,6 +922,162 @@ body { padding-top: 52px; }
 
 
 
+
+/* ── Paywall ── */
+.pw-lock {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-family: var(--font-mono);
+  color: var(--dim); vertical-align: middle; margin-left: 6px;
+}
+.pw-lock::before { content: '🔒'; font-size: 10px; }
+
+/* Locked overlay on fine-tune */
+#advanced-panel.locked {
+  position: relative; pointer-events: none; opacity: 0.45;
+  filter: blur(1px);
+}
+#finetune-lock-btn {
+  display: none;
+  width: 100%;
+  margin-top: 6px;
+  padding: 11px;
+  border: 1.5px solid var(--accent);
+  border-radius: 10px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: 13px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .15s;
+  text-align: center;
+}
+#finetune-lock-btn:hover { background: var(--accent); color: #fff; }
+#finetune-lock-btn.visible { display: block; }
+
+/* Paywall modal */
+#pw-modal {
+  display: none;
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(0,0,0,0.5);
+  align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+}
+#pw-modal.active { display: flex; }
+.pw-box {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  padding: 40px 36px;
+  max-width: 420px;
+  width: 90%;
+  display: flex; flex-direction: column; gap: 20px;
+  position: relative;
+  box-shadow: 0 24px 80px rgba(0,0,0,.2);
+}
+.pw-close {
+  position: absolute; top: 16px; right: 16px;
+  background: none; border: none; font-size: 20px;
+  color: var(--dim); cursor: pointer; line-height: 1;
+  padding: 4px 8px; border-radius: 6px;
+}
+.pw-close:hover { color: var(--text); background: var(--surface2); }
+.pw-icon { font-size: 36px; text-align: center; }
+.pw-title {
+  font-size: 22px; font-weight: 800; font-family: var(--font-ui);
+  color: var(--text); text-align: center; letter-spacing: -.3px;
+}
+.pw-desc {
+  font-size: 14px; color: var(--muted); text-align: center;
+  line-height: 1.6; font-family: var(--font-ui); font-weight: 600;
+}
+.pw-features {
+  list-style: none; display: flex; flex-direction: column; gap: 8px;
+  background: var(--surface2); border-radius: 12px; padding: 16px 18px;
+}
+.pw-features li {
+  font-size: 13px; color: var(--muted); font-family: var(--font-ui);
+  font-weight: 600; display: flex; align-items: center; gap: 10px;
+}
+.pw-features li::before { content: '✓'; color: var(--accent); font-weight: 800; flex-shrink: 0; }
+.pw-price {
+  text-align: center; font-size: 32px; font-weight: 800;
+  color: var(--text); letter-spacing: -1px; font-family: var(--font-ui);
+}
+.pw-price span { font-size: 16px; color: var(--dim); font-weight: 500; }
+.pw-btn-buy {
+  width: 100%; padding: 15px; border: none; border-radius: 12px;
+  background: var(--accent); color: #fff;
+  font-size: 16px; font-family: var(--font-ui); font-weight: 800;
+  cursor: pointer; transition: all .15s; letter-spacing: -.1px;
+  text-decoration: none; display: block; text-align: center;
+}
+.pw-btn-buy:hover { background: var(--accent2); transform: translateY(-1px); }
+.pw-btn-key {
+  width: 100%; padding: 11px; border: 1.5px solid var(--border2);
+  border-radius: 10px; background: transparent;
+  color: var(--muted); font-size: 14px; font-family: var(--font-ui);
+  font-weight: 700; cursor: pointer; transition: all .15s;
+}
+.pw-btn-key:hover { color: var(--text); border-color: var(--accent); }
+
+/* Key entry modal (reuses pw-modal) */
+#key-modal {
+  display: none;
+  position: fixed; inset: 0; z-index: 2001;
+  background: rgba(0,0,0,0.5);
+  align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+}
+#key-modal.active { display: flex; }
+.key-box {
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 20px; padding: 36px 32px;
+  max-width: 400px; width: 90%;
+  display: flex; flex-direction: column; gap: 16px;
+  position: relative;
+  box-shadow: 0 24px 80px rgba(0,0,0,.2);
+}
+.key-title { font-size: 20px; font-weight: 800; color: var(--text); font-family: var(--font-ui); }
+.key-desc { font-size: 13px; color: var(--muted); font-family: var(--font-mono); line-height: 1.6; }
+#key-input {
+  width: 100%; padding: 13px 14px;
+  border: 1.5px solid var(--border2); border-radius: 10px;
+  background: var(--surface2); color: var(--text);
+  font-size: 15px; font-family: var(--font-mono); font-weight: 600;
+  outline: none; letter-spacing: .5px;
+  transition: border-color .15s;
+}
+#key-input:focus { border-color: var(--accent); }
+#key-input.error { border-color: #ef4444; }
+#key-error {
+  font-size: 12px; color: #ef4444; font-family: var(--font-mono);
+  display: none;
+}
+#key-error.visible { display: block; }
+.key-btn-validate {
+  width: 100%; padding: 13px; border: none; border-radius: 10px;
+  background: var(--accent); color: #fff;
+  font-size: 15px; font-family: var(--font-ui); font-weight: 800;
+  cursor: pointer; transition: all .15s;
+}
+.key-btn-validate:disabled { opacity: .4; cursor: not-allowed; }
+.key-btn-cancel {
+  width: 100%; padding: 10px; border: 1.5px solid var(--border2);
+  border-radius: 10px; background: transparent;
+  color: var(--muted); font-size: 14px; font-family: var(--font-ui);
+  font-weight: 700; cursor: pointer;
+}
+
+/* Pro badge in header */
+.pro-badge {
+  display: none;
+  background: var(--accent); color: #fff;
+  font-size: 10px; font-family: var(--font-mono); font-weight: 700;
+  padding: 2px 8px; border-radius: 20px; letter-spacing: .5px;
+  margin-left: 8px; vertical-align: middle;
+}
+.pro-badge.visible { display: inline-block; }
 </style>
 </head>
 <body>
@@ -948,6 +1104,7 @@ body { padding-top: 52px; }
   <div class="sidebar-inner">
     <div class="header-row">
       <h1>Sc<span>aylr</span></h1>
+      <span class="pro-badge" id="pro-badge">PRO</span>
     </div>
 
     <div class="sec-label">Output style</div>
@@ -973,8 +1130,11 @@ body { padding-top: 52px; }
       </div>
     </div>
 
-    <button class="btn-advanced" id="btn-advanced" onclick="toggleAdvanced()">
-      ▾ Fine-tune settings
+    <button class="btn-advanced" id="btn-advanced" onclick="pwGuard('finetune', toggleAdvanced)">
+      ▾ Fine-tune settings <span class="pw-lock" id="finetune-lock-icon"></span>
+    </button>
+    <button id="finetune-lock-btn" onclick="showPaywall('finetune')">
+      🔒 Fine-tune is a Pro feature — Upgrade
     </button>
     <div class="advanced-panel" id="advanced-panel">
       <div class="advanced-hint">
@@ -1038,14 +1198,14 @@ body { padding-top: 52px; }
       </button>
       <button class="btn-cancel" id="btn-cancel" onclick="cancelConvert()">✕ Cancel</button>
       <button class="btn-reprocess" id="btn-reprocess" disabled onclick="reprocess()">
-        ↺ Re-process with new settings
+        ↺ Re-process
       </button>
 
       <div id="export-section">
         <div class="sec-label" style="margin-top:16px;">Export</div>
         <div class="export-grid">
           <button class="btn-export" onclick="exportAs('svg')">SVG</button>
-          <button class="btn-export" onclick="exportAs('pdf')">PDF</button>
+          <button class="btn-export" id="btn-pdf" onclick="exportAs('pdf')">PDF <span class="pw-lock" id="pdf-lock-icon"></span></button>
           <button class="btn-export" onclick="exportAs('png')">PNG</button>
           <button class="btn-export" onclick="exportAs('jpg')">JPG</button>
         </div>
@@ -1144,7 +1304,7 @@ body { padding-top: 52px; }
         <div class="upload-dropzone-label">Drop your image here</div>
         <div class="upload-dropzone-sub">or <span>browse files</span> · tap to choose</div>
       </div>
-      <div class="upload-formats">PNG · JPG · WEBP · BMP · max 20MB</div>
+      <div class="upload-formats">PNG · JPG · WEBP · HEIC · max 20MB</div>
     </div>
   </div>
 
@@ -1239,17 +1399,17 @@ body { padding-top: 52px; }
 const $ = id => document.getElementById(id);
 
 // ── Theme ──────────────────────────────────────────────────
-// Always default to light — user can toggle to dark
-let isDark = false;
-document.documentElement.setAttribute('data-theme', 'light');
-$('theme-icon').textContent = '🌙';
-$('theme-label').textContent = 'Dark';
-$('theme-toggle').addEventListener('click', () => {
-  isDark = !isDark;
-  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-  $('theme-icon').textContent = isDark ? '☀️' : '🌙';
-  $('theme-label').textContent = isDark ? 'Light' : 'Dark';
-});
+// Persist theme in localStorage; default light
+let isDark = localStorage.getItem('scaylr-theme') === 'dark';
+function applyTheme(dark) {
+  isDark = dark;
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  $('theme-icon').textContent = dark ? '☀️' : '🌙';
+  $('theme-label').textContent = dark ? 'Light' : 'Dark';
+  localStorage.setItem('scaylr-theme', dark ? 'dark' : 'light');
+}
+applyTheme(isDark);
+$('theme-toggle').addEventListener('click', () => applyTheme(!isDark));
 
 // ── Sidebar ────────────────────────────────────────────────
 $('toggle-btn').addEventListener('click', () => {
@@ -1307,13 +1467,11 @@ const PRESETS = {
 // Track active engine mode
 let engineMode = 'auto';
 let activePreset = null;
+let _currentCt = 60;   // matches lineart preset default; overwritten by applyPreset()
 function applyPreset(name) {
   const p = PRESETS[name]; if (!p) return;
-  if (activePreset === name) {
-    activePreset = null;
-    document.querySelectorAll('.btn-preset').forEach(b => b.classList.remove('active'));
-    markSettingsChanged(); return;
-  }
+  if (activePreset === name) return; // already active — no deselect
+  
   activePreset = name;
   document.querySelectorAll('.btn-preset').forEach(b => b.classList.remove('active'));
   document.querySelector(`[onclick="applyPreset('${name}')"]`).classList.add('active');
@@ -1558,10 +1716,12 @@ function mOnFileLoaded() {
       }
       const thumbBar = document.getElementById('m-thumb-bar');
       thumbBar?.classList.add('visible');
-      // Shift presets down to clear thumb bar
+      // Shift presets down — wait one frame so offsetHeight is computed after display:flex
       const presetsEl = document.getElementById('m-presets');
       if (presetsEl && thumbBar) {
-        presetsEl.style.marginTop = thumbBar.offsetHeight + 'px';
+        requestAnimationFrame(() => {
+          presetsEl.style.marginTop = (thumbBar.offsetHeight || 62) + 'px';
+        });
       }
     };
     reader.readAsDataURL(currentFile);
@@ -1579,9 +1739,12 @@ function mRemoveImage() {
 
 // ── Init ──────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
+  // Apply default preset on load — syncs sliders and engineMode for both platforms
   if (_isMob()) {
     mPreset('lineart');
     mSetStatus('Upload an image to start', '');
+  } else {
+    applyPreset('lineart');  // sets engineMode, _currentCt, and all slider values
   }
 });
 
@@ -1653,6 +1816,28 @@ fi.addEventListener('change',e=>{if(e.target.files[0]){load(e.target.files[0]);f
 document.addEventListener('paste',e=>{
   const items=e.clipboardData?.items;if(!items)return;
   for(const item of items){if(item.type.startsWith('image/')){const f=item.getAsFile();if(f){load(f);break;}}}
+});
+
+// ── Keyboard shortcuts ─────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  // Cmd/Ctrl+Enter → Convert (or Re-process if result exists)
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    e.preventDefault();
+    if (!_isMob()) {
+      if (hasResult && !$('btn-reprocess').disabled) {
+        reprocess();
+      } else if (!$('btn-run').disabled) {
+        runVectorize();
+      }
+    } else {
+      if (!$('m-btn-convert').disabled) mConvert();
+    }
+  }
+  // Escape → cancel in-progress conversion
+  if (e.key === 'Escape') {
+    if ($('btn-cancel')?.style.display !== 'none') cancelConvert();
+    if (_isMob() && document.getElementById('m-processing').classList.contains('active')) mCancel();
+  }
 });
 
 let currentFile=null, currentSvgText=null, currentSvgUrl=null, currentJobId=null, currentSrc=null;
@@ -2043,10 +2228,25 @@ async function exportAs(fmt){
   if(!currentSvgText)return;
   if(fmt==='svg'){const a=document.createElement('a');a.href=currentSvgUrl;a.download='vector.svg';a.click();return;}
   if(fmt==='pdf'){
-    if(!currentJobId)return;
-    setStatus('Generating vector PDF…','busy');
-    const a=document.createElement('a');a.href=`/api/download-pdf/${currentJobId}`;a.download='vector.pdf';a.click();
-    setStatus('PDF downloaded','ready');return;
+    if(!currentJobId){ setStatus('No result to export','error'); return; }
+    setStatus('Generating PDF…','busy');
+    try {
+      const proKey = localStorage.getItem('scaylr-pro-key') || '';
+      const res = await fetch(`/api/download-pdf/${currentJobId}`, {
+        headers: { 'X-License-Key': proKey }
+      });
+      if (!res.ok) throw new Error('PDF expired — re-vectorize to download PDF');
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'vector.pdf';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      setStatus('PDF downloaded','ready');
+    } catch(e) {
+      setStatus(e.message, 'error');
+    }
+    return;
   }
   const aspect=imgW/imgH;
   const expW=imgW>=imgH?EXPORT_LONG:Math.round(EXPORT_LONG*aspect);
@@ -2086,8 +2286,20 @@ window.addEventListener('unhandledrejection', e => {
 // ── Copy SVG code ────────────────────────────────────────
 async function copySvgCode() {
   if (!currentSvgText) return;
+  // Try modern clipboard API first, fall back to execCommand for HTTP/older browsers
+  const copyText = async (text) => {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+  };
   try {
-    await navigator.clipboard.writeText(currentSvgText);
+    await copyText(currentSvgText);
     const btn = $('btn-copy-svg');
     const orig = btn.textContent;
     btn.textContent = '✓ Copied to clipboard';
@@ -2138,12 +2350,246 @@ async function loadSampleFromUrl() {
 // Run on page load
 window.addEventListener('DOMContentLoaded', loadSampleFromUrl);
 
+
+// ═══════════════════════════════════════════════════════════════════
+// PAYWALL — Pro gating
+// Free: all conversions, no PDF, no fine-tune
+// Pro: everything, unlocked by license key stored in localStorage
+// ═══════════════════════════════════════════════════════════════════
+
+const PW_KEY_STORAGE = 'scaylr-pro-key';
+let isPro = false;
+
+// ── Boot: check stored key ─────────────────────────────────────────
+async function pwInit() {
+  const stored = localStorage.getItem(PW_KEY_STORAGE);
+  if (stored) {
+    const ok = await pwValidateRemote(stored);
+    if (ok) {
+      pwActivate(stored, false); // silent — no toast on init
+      return;
+    } else {
+      localStorage.removeItem(PW_KEY_STORAGE); // key revoked/invalid
+    }
+  }
+  pwApplyFreeUI();
+}
+
+// ── Remote key validation ─────────────────────────────────────────
+async function pwValidateRemote(key) {
+  try {
+    const res = await fetch('/api/validate-key', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({key})
+    });
+    const data = await res.json();
+    return data.valid === true;
+  } catch(e) {
+    // If server unreachable, validate format client-side as fallback
+    return /^SCAYLR-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}$/.test(key.toUpperCase());
+  }
+}
+
+// ── Activate Pro in UI ─────────────────────────────────────────────
+function pwActivate(key, showToast = true) {
+  isPro = true;
+  localStorage.setItem(PW_KEY_STORAGE, key);
+
+  // Show pro badge
+  document.getElementById('pro-badge')?.classList.add('visible');
+
+  // Remove lock icons
+  document.getElementById('finetune-lock-icon').style.display = 'none';
+  document.getElementById('pdf-lock-icon').style.display = 'none';
+
+  // Unlock fine-tune — restore normal click handler and hide lock button
+  const btnAdv = document.getElementById('btn-advanced');
+  btnAdv.onclick = () => toggleAdvanced();
+  document.getElementById('finetune-lock-btn')?.classList.remove('visible');
+
+  // Close any open modals
+  closePaywall(); closeKeyModal();
+
+  if (showToast) {
+    setStatus('🎉 Pro activated — all features unlocked!', 'ready');
+    setTimeout(() => setStatus('', ''), 4000);
+  }
+}
+
+// ── Apply free UI locks ────────────────────────────────────────────
+function pwApplyFreeUI() {
+  isPro = false;
+  // Show lock icons
+  const fi = document.getElementById('finetune-lock-icon');
+  const pi = document.getElementById('pdf-lock-icon');
+  if (fi) fi.style.display = '';
+  if (pi) pi.style.display = '';
+  // Show lock button below fine-tune toggle
+  document.getElementById('finetune-lock-btn')?.classList.add('visible');
+}
+
+// ── Guard: called before Pro features ─────────────────────────────
+function pwGuard(feature, callback) {
+  if (isPro) {
+    if (typeof callback === 'function') callback();
+    return;
+  }
+  showPaywall(feature);
+}
+
+// ── Show paywall modal ─────────────────────────────────────────────
+function showPaywall(feature) {
+  const descs = {
+    pdf:      'PDF export is a Pro feature. Upgrade to download vector PDFs ready for print.',
+    finetune: 'Fine-tune settings are a Pro feature. Adjust blur, posterize, sharpness and more.',
+  };
+  const el = document.getElementById('pw-desc');
+  if (el) el.textContent = descs[feature] || 'Upgrade to Pro to unlock this feature.';
+  document.getElementById('pw-modal').classList.add('active');
+}
+
+function closePaywall() {
+  document.getElementById('pw-modal')?.classList.remove('active');
+}
+
+// ── Key modal ─────────────────────────────────────────────────────
+function showKeyModal() {
+  closePaywall();
+  document.getElementById('key-modal').classList.add('active');
+  setTimeout(() => document.getElementById('key-input')?.focus(), 100);
+  // Pre-fill if something was typed before
+  document.getElementById('key-error')?.classList.remove('visible');
+  document.getElementById('key-input')?.classList.remove('error');
+}
+
+function closeKeyModal() {
+  document.getElementById('key-modal')?.classList.remove('active');
+}
+
+async function validateKey() {
+  const input = document.getElementById('key-input');
+  const btn   = document.getElementById('key-validate-btn');
+  const err   = document.getElementById('key-error');
+  const key   = (input?.value || '').trim().toUpperCase();
+
+  if (!key) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Checking…';
+  err.classList.remove('visible');
+  input.classList.remove('error');
+
+  const ok = await pwValidateRemote(key);
+
+  if (ok) {
+    pwActivate(key, true);
+    input.value = '';
+    btn.textContent = 'Activate Pro';
+    btn.disabled = false;
+  } else {
+    input.classList.add('error');
+    err.classList.add('visible');
+    btn.textContent = 'Activate Pro';
+    btn.disabled = false;
+    input.focus();
+  }
+}
+
+// ── Override exportAs to guard PDF ───────────────────────────────
+// Wrap the existing exportAs to intercept PDF calls
+const _origExportAs = exportAs;
+async function exportAs(fmt) {
+  if (fmt === 'pdf' && !isPro) {
+    showPaywall('pdf');
+    return;
+  }
+  return _origExportAs(fmt);
+}
+
+// ── Close modals on backdrop click ───────────────────────────────
+document.getElementById('pw-modal')?.addEventListener('click', e => {
+  if (e.target.id === 'pw-modal') closePaywall();
+});
+document.getElementById('key-modal')?.addEventListener('click', e => {
+  if (e.target.id === 'key-modal') closeKeyModal();
+});
+
+// ── Mobile PDF button in result modal ────────────────────────────
+// The mobile m-dl-btn for PDF also needs guarding
+document.addEventListener('DOMContentLoaded', () => {
+  // Find PDF button in mobile result modal and wrap it
+  const mobPdfBtns = document.querySelectorAll('.m-dl-btn');
+  mobPdfBtns.forEach(btn => {
+    if (btn.textContent.trim() === 'PDF') {
+      const orig = btn.getAttribute('onclick');
+      btn.removeAttribute('onclick');
+      btn.addEventListener('click', () => {
+        if (isPro) { exportAs('pdf'); } else { showPaywall('pdf'); }
+      });
+    }
+  });
+
+  // Boot paywall check
+  pwInit();
+});
+
+// ── Allow Escape to close paywall modals ──────────────────────────
+// (Added to existing keydown listener above, but also handle here)
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('pw-modal').classList.contains('active')) closePaywall();
+    if (document.getElementById('key-modal').classList.contains('active')) closeKeyModal();
+  }
+}, true);
+
 </script>
 
 <!-- Full-page drag overlay -->
 <div id="drag-overlay">
   <div class="drag-msg">⬇ Drop your image</div>
   <div class="drag-sub">PNG · JPG · WEBP · HEIC · max 20MB</div>
+</div>
+
+<!-- Paywall modal -->
+<div id="pw-modal">
+  <div class="pw-box">
+    <button class="pw-close" onclick="closePaywall()">✕</button>
+    <div class="pw-icon">⬡</div>
+    <div class="pw-title">Upgrade to Pro</div>
+    <div class="pw-desc" id="pw-desc">Unlock all features with a Pro license.</div>
+    <ul class="pw-features">
+      <li>PDF vector export (print-ready)</li>
+      <li>Fine-tune settings for perfect results</li>
+      <li>Unlimited conversions</li>
+      <li>Priority processing</li>
+      <li>One-time license — no subscription</li>
+    </ul>
+    <div class="pw-price">$12 <span>/ month</span></div>
+    <a class="pw-btn-buy" id="pw-btn-buy" href="https://buy.stripe.com/scaylr" target="_blank" rel="noopener">
+      Get Pro →
+    </a>
+    <button class="pw-btn-key" onclick="showKeyModal()">
+      Already have a key? Enter it here
+    </button>
+  </div>
+</div>
+
+<!-- Key entry modal -->
+<div id="key-modal">
+  <div class="key-box">
+    <button class="pw-close" onclick="closeKeyModal()">✕</button>
+    <div class="key-title">Enter license key</div>
+    <div class="key-desc">Your key looks like: SCAYLR-XXXX-XXXX-XXXX-XXXX</div>
+    <input type="text" id="key-input" placeholder="SCAYLR-XXXX-XXXX-XXXX-XXXX"
+      oninput="this.value=this.value.toUpperCase()"
+      onkeydown="if(event.key==='Enter') validateKey()"/>
+    <div id="key-error">Invalid key — please check and try again.</div>
+    <button class="key-btn-validate" id="key-validate-btn" onclick="validateKey()">
+      Activate Pro
+    </button>
+    <button class="key-btn-cancel" onclick="closeKeyModal()">Cancel</button>
+  </div>
 </div>
 
 </body>
