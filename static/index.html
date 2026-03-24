@@ -1375,12 +1375,19 @@ function mrmFit() {
   const inner = $('mrm-inner');
   const svgEl = inner.querySelector('svg');
   if (!svgEl) return;
-  const sw = parseFloat(svgEl.getAttribute('width')) || vp.clientWidth;
-  const sh = parseFloat(svgEl.getAttribute('height')) || vp.clientHeight;
-  mrmZoomVal = Math.min(vp.clientWidth/sw, vp.clientHeight/sh) * 0.95;
-  mrmPanX = (vp.clientWidth - sw*mrmZoomVal)/2;
-  mrmPanY = (vp.clientHeight - sh*mrmZoomVal)/2;
+  let sw, sh;
+  const vb = svgEl.getAttribute('viewBox');
+  if (vb) { const p = vb.trim().split(/[\s,]+/); sw = parseFloat(p[2]); sh = parseFloat(p[3]); }
+  if (!sw || isNaN(sw)) sw = parseFloat(svgEl.getAttribute('width'));
+  if (!sh || isNaN(sh)) sh = parseFloat(svgEl.getAttribute('height'));
+  const nw = sw || vp.clientWidth;
+  const nh = sh || vp.clientHeight;
+  mrmZoomVal = Math.min(vp.clientWidth/nw, vp.clientHeight/nh) * 0.92;
+  mrmZoomVal = Math.max(0.05, Math.min(mrmZoomVal, 10));
+  mrmPanX = (vp.clientWidth - nw*mrmZoomVal)/2;
+  mrmPanY = (vp.clientHeight - nh*mrmZoomVal)/2;
   mrmApplyTransform();
+  $('mrm-zoom-label').textContent = Math.round(mrmZoomVal*100)+'%';
 }
 
 // Touch pan on modal viewport — init after DOM ready
