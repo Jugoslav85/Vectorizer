@@ -412,12 +412,15 @@ def vectorize_layered(image_data: bytes,
                       simplify: bool = True,
                       simplify_epsilon: float = 0.3) -> str:
     """
-    Single-pass composite approach:
-    1. Preprocess image for good colour (bilateral + quantise)
-    2. Detect edges and burn them into the colour image as hard boundaries
-    3. Run vtracer once on the composite → clean edges + preserved colours
+    Adaptive quantisation approach:
+    - Detect edge regions vs smooth regions
+    - Apply tight quantisation (few colours, hard boundaries) in edge regions
+    - Apply loose quantisation (many colours) in smooth/gradient regions
+    - Blend the two into one composite image
+    - Single vtracer pass with moderate corner_threshold
 
-    This avoids the SVG merge alignment problems of the three-pass approach.
+    This avoids adding artificial outlines while still producing crisp
+    boundaries where hard edges naturally exist.
     """
     img = Image.open(io.BytesIO(image_data)).convert('RGBA')
     img = _resize(img)
@@ -426,56 +429,73 @@ def vectorize_layered(image_data: bytes,
 
     rgb = img.convert('RGB')
 
-    # ── Step 1: Build colour base layer ──────────────────────────────────────
-    print('[layered] building colour base…', flush=True)
-    colour = rgb.copy()
-    # Gentle saturation boost to separate colours
-    colour = ImageEnhance.Color(colour).enhance(1.2)
-    # Bilateral to smooth noise within colour regions
-    colour = _bilateral_filter(colour, radius=0.8)
-    # Quantise to clean colour set
-    colour = _quantise(colour, n_colors=64)
+    # ── Step 1: Detect edge regions ───────────────────────────────────────────
+    print('[layered] detecting edge vs smooth regions…', flush=True)
 
-    # ── Step 2: Build edge mask ───────────────────────────────────────────────
-    print('[layered] detecting edges…', flush=True)
-    # Use original (not colour-processed) for edge detection — more accurate
-    edge_mask = _detect_edges_pillow(rgb, threshold=20)
+    # Edge mask — strong bilateral + FIND_EDGES
+    prepped = _bilateral_filter(rgb, radius=0.6)
+    prepped = ImageEnhance.Contrast(prepped).enhance(1.4)
+    edge_mask = _detect_edges_pillow(prepped, threshold=18)
 
-    # ── Step 3: Burn edges into colour image ──────────────────────────────────
-    # Where edges are detected, push those pixels toward black in the colour image
-    # This creates hard, dark boundaries that vtracer traces as clean paths
-    print('[layered] burning edges into colour image…', flush=True)
-    colour_arr = list(colour.getdata())
-    edge_arr = list(edge_mask.getdata())
+    # Expand edge mask to include a small neighbourhood around each edge
+    # so the tight quantisation covers full stroke width
+    edge_mask_wide = edge_mask.filter(ImageFilter.MaxFilter(5))
+    edge_mask_wide = edge_mask_wide.filter(ImageFilter.GaussianBlur(radius=2))
+
+    # ── Step 2: Tight quantisation for edge regions ───────────────────────────
+    # Few colours + strong sharpening → hard clean boundaries
+    print('[layered] tight quantisation for edge regions…', flush=True)
+    edge_region = rgb.copy()
+    edge_region = ImageEnhance.Color(edge_region).enhance(1.3)
+    edge_region = ImageEnhance.Contrast(edge_region).enhance(1.5)
+    edge_region = ImageEnhance.Sharpness(edge_region).enhance(2.0)
+    edge_region = edge_region.filter(
+        ImageFilter.UnsharpMask(radius=1.0, percent=150, threshold=1))
+    edge_region = _quantise(edge_region, n_colors=24)
+
+    # ── Step 3: Loose quantisation for smooth/gradient regions ────────────────
+    # Many colours + gentle bilateral → preserves tonal gradation
+    print('[layered] loose quantisation for smooth regions…', flush=True)
+    smooth_region = rgb.copy()
+    smooth_region = ImageEnhance.Color(smooth_region).enhance(1.15)
+    smooth_region = _bilateral_filter(smooth_region, radius=1.0)
+    smooth_region = _quantise(smooth_region, n_colors=80)
+
+    # ── Step 4: Blend edge and smooth regions using the edge mask ─────────────
+    print('[layered] blending regions…', flush=True)
+    # Where edge_mask_wide is white → use tight (edge) quantisation
+    # Where edge_mask_wide is black → use smooth (gradient) quantisation
+    # Blend smoothly between the two
+
+    edge_arr = list(edge_region.getdata())
+    smooth_arr = list(smooth_region.getdata())
+    mask_arr = list(edge_mask_wide.getdata())
+
     composite_arr = []
-    for i, (r, g, b) in enumerate(colour_arr):
-        edge_strength = edge_arr[i] / 255.0
-        if edge_strength > 0.3:
-            # Darken toward black proportionally to edge strength
-            factor = 1.0 - (edge_strength * 0.85)
-            composite_arr.append((
-                int(r * factor),
-                int(g * factor),
-                int(b * factor)
-            ))
-        else:
-            composite_arr.append((r, g, b))
+    for i in range(len(edge_arr)):
+        alpha = mask_arr[i] / 255.0  # 1.0 = use edge, 0.0 = use smooth
+        re_, ge, be = edge_arr[i]
+        rs, gs, bs = smooth_arr[i]
+        composite_arr.append((
+            int(re_ * alpha + rs * (1 - alpha)),
+            int(ge * alpha + gs * (1 - alpha)),
+            int(be * alpha + bs * (1 - alpha)),
+        ))
 
     composite = Image.new('RGB', (w, h))
     composite.putdata(composite_arr)
 
-    # ── Step 4: Final sharpening on composite ────────────────────────────────
-    # Recover any edge softening from the bilateral step
+    # ── Step 5: Final light sharpening on composite ───────────────────────────
     composite = composite.filter(
-        ImageFilter.UnsharpMask(radius=0.8, percent=100, threshold=2))
+        ImageFilter.UnsharpMask(radius=0.5, percent=60, threshold=3))
 
-    # Restore alpha if present
+    # Restore alpha
     if img.mode == 'RGBA':
         composite = composite.convert('RGBA')
         composite.putalpha(img.getchannel('A'))
 
-    # ── Step 5: Single vtracer pass ───────────────────────────────────────────
-    print('[layered] running vtracer on composite…', flush=True)
+    # ── Step 6: Single vtracer pass ───────────────────────────────────────────
+    print('[layered] running vtracer on adaptive composite…', flush=True)
     inp = out = None
     try:
         with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
@@ -486,17 +506,17 @@ def vectorize_layered(image_data: bytes,
             inp, out,
             colormode='color',
             mode='spline',
-            corner_threshold=28,
-            length_threshold=3.2,
+            corner_threshold=25,
+            length_threshold=3.0,
             filter_speckle=3,
             color_precision=8,
             layer_difference=2,
-            splice_threshold=30,
+            splice_threshold=25,
             path_precision=3,
         )
         svg = open(out, encoding='utf-8').read()
-        paths = svg.count('<path')
-        print(f'[layered] {paths} paths before post-processing', flush=True)
+        paths_before = svg.count('<path')
+        print(f'[layered] {paths_before} paths before post-processing', flush=True)
 
         svg = _remove_short_paths(svg, min_size=2.0)
         if simplify:
