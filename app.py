@@ -4,7 +4,14 @@ from flask import Flask, request, jsonify, send_from_directory, send_file, Respo
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect
-from vtracer_engine import vectorize
+try:
+    from vtracer_engine import vectorize
+    print("[startup] vtracer_engine imported OK", flush=True)
+except Exception as _import_err:
+    import traceback as _tb
+    print(f"[startup] FATAL: vtracer_engine import failed: {_import_err}", flush=True)
+    _tb.print_exc()
+    raise
 
 BASE_DIR    = Path(__file__).parent
 OUTPUT_DIR  = BASE_DIR / "outputs"
@@ -159,10 +166,19 @@ def api_vectorize():
         except: return d
 
     settings = {
-        "blur_radius":     gf("blur_radius",     0.8),
-        "color_precision": gi("color_precision",  8),
-        "layer_difference":gi("layer_difference", 1),
-        "filter_speckle":  gi("filter_speckle",   6),
+        "blur_radius":      gf("blur_radius",      0.8),
+        "color_precision":  gi("color_precision",   8),
+        "layer_difference": gi("layer_difference",  1),
+        "filter_speckle":   gi("filter_speckle",    6),
+        "engine_mode":      request.form.get("engine_mode", "auto"),
+        "posterize_bits":   gi("posterize_bits",    7),
+        "unsharp_percent":  gi("unsharp_percent",   90),
+        "unsharp_radius":   gf("unsharp_radius",    0.5),
+        "simplify_epsilon": gf("simplify_epsilon",  0.3),
+        "use_gap_filler":   request.form.get("use_gap_filler",   "1") == "1",
+        "replace_shapes":   request.form.get("replace_shapes",   "1") == "1",
+        "snap_palette":     request.form.get("snap_palette",     "1") == "1",
+        "group_colours":    request.form.get("group_colours",    "0") == "1",
     }
 
     # ── Cache lookup ──
@@ -191,22 +207,28 @@ def api_vectorize():
     def _run():
         return vectorize(
             raw,
-            posterize_bits    = 7,
-            unsharp_radius    = 0.5,
-            unsharp_percent   = 90,
+            # Preprocessing params
+            posterize_bits    = settings["posterize_bits"],
+            unsharp_radius    = settings["unsharp_radius"],
+            unsharp_percent   = settings["unsharp_percent"],
             unsharp_threshold = 4,
             blur_radius       = settings["blur_radius"],
-            colormode         = "color",
+            # Engine mode — controls which pipeline runs
+            engine_mode       = settings["engine_mode"],
+            simplify          = True,
+            simplify_epsilon  = settings["simplify_epsilon"],
+            # vtracer base params (engine may override these for lineart/text)
             hierarchical      = "stacked",
-            mode              = "spline",
-            corner_threshold  = 1,
-            length_threshold  = 3.5,
             max_iterations    = 1,
-            splice_threshold  = 1,
             path_precision    = 1,
+            # User-controlled params
             filter_speckle    = settings["filter_speckle"],
             color_precision   = settings["color_precision"],
             layer_difference  = settings["layer_difference"],
+            use_gap_filler    = settings["use_gap_filler"],
+            replace_shapes    = settings["replace_shapes"],
+            do_snap_palette   = settings["snap_palette"],
+            group_colours     = settings["group_colours"],
         )
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         future = executor.submit(_run)
@@ -234,12 +256,13 @@ def api_vectorize():
     })
 
     resp = make_response(jsonify({
-        "job_id":   job_id,
-        "elapsed":  elapsed,
-        "paths":    paths,
-        "svg":      svg,
-        "download": f"/api/download/{job_id}",
-        "cached":   False,
+        "job_id":     job_id,
+        "elapsed":    elapsed,
+        "paths":      paths,
+        "svg":        svg,
+        "download":   f"/api/download/{job_id}",
+        "cached":     False,
+        "engine_mode": settings["engine_mode"],
     }))
     resp.set_cookie("vsid", session_id, max_age=86400, samesite="Lax")
     return resp
