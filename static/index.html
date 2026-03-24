@@ -24,7 +24,7 @@
   --text:#111120; --muted:#55557a; --dim:#9999b8;
   --green:#1a9e6e; --red:#d94f4f; --yellow:#b8920a;
   --shadow:rgba(0,0,0,0.10);
-  --sidebar-w:420px;
+  --sidebar-w:320px;
   --font-ui:'Syne',sans-serif; --font-mono:'DM Mono',monospace;
 }
 [data-theme="dark"]{
@@ -58,9 +58,11 @@ body.collapsed aside{width:0;border-right:none;}
 .sidebar-inner{
   width:var(--sidebar-w);flex:1;
   overflow-y:auto;overflow-x:hidden;
-  padding:22px 22px 24px;
+  padding:18px 18px 20px;
   scrollbar-width:thin;scrollbar-color:var(--border2) transparent;
   min-height:0;
+  display:flex;flex-direction:column;
+  align-items:stretch;
 }
 .sidebar-inner::-webkit-scrollbar{width:4px;}
 .sidebar-inner::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
@@ -101,16 +103,16 @@ h1 span{color:var(--accent);}
 }
 
 /* ── Presets ── */
-.presets-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;}
+.presets-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;align-content:start;align-items:start;}
+.presets-grid .sec-label,.presets-grid .has-tooltip[style*="grid-column"]{grid-column:1/-1;}
 .btn-preset{
   position:relative;
   background:var(--surface2);color:var(--muted);
   border:1.5px solid var(--border);border-radius:10px;
   font-size:13px;font-family:var(--font-ui);font-weight:700;
-  padding:14px 8px;cursor:pointer;transition:all .15s;
+  padding:10px 8px;cursor:pointer;transition:all .15s;
   text-align:center;line-height:1.3;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:5px;min-height:64px;width:100%;
+  display:block;width:100%;height:auto;
 }
 .btn-preset:hover{color:var(--text);border-color:var(--accent);background:var(--accent-bg);}
 .btn-preset.active{
@@ -123,7 +125,7 @@ h1 span{color:var(--accent);}
 }
 .btn-preset.active .preset-dot{background:var(--accent);}
 .btn-preset:hover .preset-dot{background:var(--accent);}
-.btn-preset-wide{grid-column:1/-1;flex-direction:row;gap:10px;justify-content:center;min-height:44px;}
+.btn-preset-wide{grid-column:1/-1;padding:10px 8px;}
 
 /* ── Tooltip ── */
 .has-tooltip{position:relative;}
@@ -519,6 +521,40 @@ body { height: calc(100vh); }
 #mobile-status      { display: none; }
 #mobile-result-modal{ display: none; }
 
+/* ── Sidebar width: reduce on smaller screens ── */
+:root { --sidebar-w: 320px; }
+@media (max-width: 1200px) and (min-width: 901px) {
+  :root { --sidebar-w: 280px; }
+  .btn-preset { font-size: 12px; padding: 10px 8px; }
+  .sidebar-inner { padding: 16px 14px 20px; }
+  .sidebar-actions { padding: 12px 14px 16px; }
+}
+
+/* ── Tablet portrait (601–900px): keep sidebar, compact it ── */
+@media (max-width: 900px) and (min-width: 601px) {
+  :root { --sidebar-w: 240px; }
+  aside {
+    display: flex !important;
+    flex-direction: column;
+    width: var(--sidebar-w) !important;
+    min-width: var(--sidebar-w) !important;
+  }
+  .toggle-btn { display: none !important; }
+  body { overflow: hidden; height: 100svh; }
+  main { flex-direction: row !important; height: calc(100svh - 52px); }
+  /* Hide mobile-only elements on tablet */
+  #mobile-presets     { display: none !important; }
+  #mobile-convert-bar { display: none !important; }
+  #mobile-status      { display: none !important; }
+  #mobile-finetune    { display: none !important; }
+  #mobile-result-modal { display: none !important; }
+  /* Show desktop results */
+  #results-screen { display: flex !important; }
+  .btn-preset { font-size: 12px; padding: 9px 6px; }
+  .sidebar-inner { padding: 14px 12px 16px; }
+  .sidebar-actions { padding: 10px 12px 14px; }
+}
+
 /* ══════════════════════════════════════════
    MOBILE  ≤ 900px  (phones + tablets + landscape)
    ══════════════════════════════════════════ */
@@ -631,10 +667,10 @@ body { height: calc(100vh); }
   .upload-dropzone-label { font-size: 15px; }
   .upload-dropzone-sub { font-size: 12px; }
 
-  /* Mobile presets — 2x2 grid instead of horizontal scroll */
+  /* Mobile presets — Line Art full width, then 3 columns */
   #mobile-presets {
     display: grid !important;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 8px;
     padding: 12px 16px;
     background: var(--surface);
@@ -882,39 +918,24 @@ body { height: calc(100vh); }
 
     <div class="sec-label">Output style</div>
     <div class="presets-grid">
-      <div class="has-tooltip">
-        <button class="btn-preset" onclick="applyPreset('flat')">Flat Design</button>
-        <div class="tip">Bold solid colors, clean sharp edges. Great for posters, stickers, and graphic prints.</div>
-      </div>
-      <div class="has-tooltip">
-        <button class="btn-preset" onclick="applyPreset('illustration')">Artwork</button>
-        <div class="tip">Balanced color and detail. Works well for digital illustrations and character art.</div>
-      </div>
-      <div class="has-tooltip">
-        <button class="btn-preset" onclick="applyPreset('photo')">Rich Detail</button>
-        <div class="tip">Captures fine textures and gradients. Best for complex imagery. Takes longer to process.</div>
-      </div>
-      <div class="has-tooltip">
-        <button class="btn-preset" onclick="applyPreset('logo')">Logo & Clipart</button>
-        <div class="tip">Clean reduced-color output with precise edges. Ideal for logos and print-ready artwork.</div>
-      </div>
-      <div class="has-tooltip">
-        <button class="btn-preset" onclick="applyPreset('lineart')">
-          <span class="preset-dot"></span>Line Art
-        </button>
-        <div class="tip">B&W binary mode. Best for sketches, outlines, and pure line drawings.</div>
-      </div>
-      <div class="has-tooltip">
-        <button class="btn-preset" onclick="applyPreset('text')">
-          <span class="preset-dot"></span>Text &amp; Mixed
-        </button>
-        <div class="tip">Colour output with clean text regions. Use when your image contains text alongside artwork.</div>
-      </div>
       <div class="has-tooltip" style="grid-column:1/-1;">
-        <button class="btn-preset btn-preset-wide" onclick="applyPreset('layered')">
-          <span class="preset-dot"></span>⚗ Advanced — Layer Separation
-        </button>
-        <div class="tip">Experimental. Separates edges, flat colour and gradients into three layers, vectorises each independently. Best for complex mixed designs. Takes slightly longer.</div>
+        <button class="btn-preset btn-preset-wide" onclick="applyPreset('lineart')">✏ Line Art</button>
+        <div class="tip">B&amp;W binary mode with auto threshold. Best for sketches, drawings, and line art. Produces clean smooth paths.</div>
+      </div>
+
+      <div class="sec-label" style="margin:12px 0 6px;">Complex image</div>
+
+      <div class="has-tooltip">
+        <button class="btn-preset" onclick="applyPreset('low')">Low</button>
+        <div class="tip">Simplified output — fewer colours, bold shapes. Great for flat illustrations, logos, and icons.</div>
+      </div>
+      <div class="has-tooltip">
+        <button class="btn-preset" onclick="applyPreset('medium')">Medium</button>
+        <div class="tip">Balanced detail and file size. Works well for most illustrations and digital art.</div>
+      </div>
+      <div class="has-tooltip">
+        <button class="btn-preset" onclick="applyPreset('detailed')">Very Detailed</button>
+        <div class="tip">Maximum colour depth and path detail. Best for complex AI art, photos, and rich illustrations. Takes longer.</div>
       </div>
     </div>
 
@@ -1004,13 +1025,10 @@ body { height: calc(100vh); }
   <!-- ═══ MOBILE-ONLY UI (inside main, above all screens) ═══ -->
   <!-- Mobile presets bar -->
   <div id="mobile-presets">
-    <button class="mobile-preset-btn active" onclick="mobilePreset('flat')">Flat Design</button>
-    <button class="mobile-preset-btn" onclick="mobilePreset('illustration')">Artwork</button>
-    <button class="mobile-preset-btn" onclick="mobilePreset('photo')">Rich Detail</button>
-    <button class="mobile-preset-btn" onclick="mobilePreset('logo')">Logo & Clipart</button>
-  <button class="mobile-preset-btn" onclick="mobilePreset('lineart')">Line Art</button>
-  <button class="mobile-preset-btn" onclick="mobilePreset('text')">Text & Mixed</button>
-  <button class="mobile-preset-btn" onclick="mobilePreset('layered')">⚗ Advanced</button>
+    <button class="mobile-preset-btn active" onclick="mobilePreset('lineart')">✏ Line Art</button>
+    <button class="mobile-preset-btn" onclick="mobilePreset('low')">Low</button>
+    <button class="mobile-preset-btn" onclick="mobilePreset('medium')">Medium</button>
+    <button class="mobile-preset-btn" onclick="mobilePreset('detailed')">Very Detailed</button>
   </div>
   <!-- Mobile fine-tune panel (collapsible) -->
   <div id="mobile-finetune">
@@ -1218,13 +1236,12 @@ function toggleAdvanced() {
 
 // ── Presets ────────────────────────────────────────────────
 const PRESETS = {
-  flat:         { cp:8, ld:7,  fs:14, br:0.8,  mode:'color'   },
-  illustration: { cp:8, ld:1,  fs:6,  br:0.8,  mode:'color'   },
-  photo:        { cp:8, ld:1,  fs:1,  br:0.8,  mode:'color'   },
-  logo:         { cp:4, ld:4,  fs:15, br:0.5,  mode:'color'   },
-  lineart:      { cp:4, ld:1,  fs:4,  br:0.3,  mode:'lineart' },
-  text:         { cp:8, ld:1,  fs:2,  br:0.3,  mode:'text'    },
-  layered:      { cp:8, ld:1,  fs:2,  br:0.3,  mode:'layered' },
+  // Line art — pure B&W binary mode
+  lineart:  { cp:4, ld:1,  fs:4,  br:0.3,  mode:'lineart' },
+  // Colour complexity levels
+  low:      { cp:4, ld:8,  fs:16, br:1.0,  mode:'color'   },
+  medium:   { cp:6, ld:3,  fs:8,  br:0.8,  mode:'color'   },
+  detailed: { cp:8, ld:1,  fs:2,  br:0.5,  mode:'color'   },
 };
 // Track active engine mode
 let engineMode = 'auto';
@@ -1557,7 +1574,7 @@ function load(f) {
     const ba=$('btn-advanced');
     if(ba) ba.textContent='▾ Fine-tune settings';
     // Apply default preset
-    applyPreset('flat');
+    applyPreset('lineart');
   }
 
   currentFile=f;
@@ -1659,7 +1676,7 @@ function resetToUpload(){
   }
 
   // Re-apply default preset (Flat Design)
-  applyPreset('flat');
+  applyPreset('lineart');
 
   setStatus('Upload an image to get started','');
   showUploadScreen();
@@ -1917,7 +1934,7 @@ async function exportAs(fmt){
 
 // ── Default preset on load ───────────────────────────────
 // Apply Flat Design as default when app opens
-applyPreset('flat');
+applyPreset('lineart');
 
 // ── Global error boundary ────────────────────────────────
 window.onerror = function(msg, src, line, col, err) {
