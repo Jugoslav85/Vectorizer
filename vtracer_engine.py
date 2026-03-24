@@ -23,9 +23,9 @@ import vtracer
 
 from PIL import Image, ImageFilter, ImageOps, ImageEnhance, ImageDraw
 
-MAX_PIXELS   = 2_000_000
-MIN_PIXELS   = 1_500_000
-TARGET_SMALL = 2_000_000
+MAX_PIXELS   = 1_500_000   # 1.5MP — faster processing, still high quality
+MIN_PIXELS   = 1_000_000   # don't upscale below 1MP
+TARGET_SMALL = 1_500_000
 
 # ── Resize ────────────────────────────────────────────────────────────────────
 def _resize(img: Image.Image) -> Image.Image:
@@ -670,7 +670,9 @@ def vectorize(image_data: bytes,
 
         # Post-processing
         svg = _remove_short_paths(svg, min_size=2.0)
-        if simplify:
+        paths_mid = svg.count('<path')
+        # Only run RDP if there are enough paths to benefit from it
+        if simplify and paths_mid > 150:
             svg = _simplify_svg_paths(svg, epsilon=simplify_epsilon)
         paths_after = svg.count('<path')
         print(f'[engine] {paths_after} paths after post-processing '
