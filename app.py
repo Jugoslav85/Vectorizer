@@ -163,6 +163,7 @@ def api_vectorize():
         "color_precision": gi("color_precision",  8),
         "layer_difference":gi("layer_difference", 1),
         "filter_speckle":  gi("filter_speckle",   6),
+        "engine_mode":     request.form.get("engine_mode", "auto"),
     }
 
     # ── Cache lookup ──
@@ -196,6 +197,9 @@ def api_vectorize():
             unsharp_percent   = 90,
             unsharp_threshold = 4,
             blur_radius       = settings["blur_radius"],
+            engine_mode       = settings["engine_mode"],
+            simplify          = True,
+            simplify_epsilon  = 0.3,
             colormode         = "color",
             hierarchical      = "stacked",
             mode              = "spline",
@@ -234,12 +238,13 @@ def api_vectorize():
     })
 
     resp = make_response(jsonify({
-        "job_id":   job_id,
-        "elapsed":  elapsed,
-        "paths":    paths,
-        "svg":      svg,
-        "download": f"/api/download/{job_id}",
-        "cached":   False,
+        "job_id":     job_id,
+        "elapsed":    elapsed,
+        "paths":      paths,
+        "svg":        svg,
+        "download":   f"/api/download/{job_id}",
+        "cached":     False,
+        "engine_mode": settings["engine_mode"],
     }))
     resp.set_cookie("vsid", session_id, max_age=86400, samesite="Lax")
     return resp

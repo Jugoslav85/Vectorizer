@@ -123,6 +123,7 @@ h1 span{color:var(--accent);}
 }
 .btn-preset.active .preset-dot{background:var(--accent);}
 .btn-preset:hover .preset-dot{background:var(--accent);}
+.btn-preset-wide{grid-column:1/-1;flex-direction:row;gap:10px;justify-content:center;min-height:44px;}
 
 /* ── Tooltip ── */
 .has-tooltip{position:relative;}
@@ -967,6 +968,7 @@ body { height: calc(100vh); }
     <button class="mobile-preset-btn" onclick="mobilePreset('illustration')">Artwork</button>
     <button class="mobile-preset-btn" onclick="mobilePreset('photo')">Rich Detail</button>
     <button class="mobile-preset-btn" onclick="mobilePreset('logo')">Logo & Clipart</button>
+  <button class="mobile-preset-btn" onclick="mobilePreset('lineart')">Line Art & Text</button>
   </div>
   <!-- Mobile fine-tune panel (collapsible) -->
   <div id="mobile-finetune">
@@ -1174,11 +1176,14 @@ function toggleAdvanced() {
 
 // ── Presets ────────────────────────────────────────────────
 const PRESETS = {
-  flat:         { cp:8, ld:7,  fs:14, br:0.8 },
-  illustration: { cp:8, ld:1,  fs:6,  br:0.8 },
-  photo:        { cp:8, ld:1,  fs:1,  br:0.8 },
-  logo:         { cp:4, ld:4,  fs:15, br:0.5 },
+  flat:         { cp:8, ld:7,  fs:14, br:0.8,  mode:'color'   },
+  illustration: { cp:8, ld:1,  fs:6,  br:0.8,  mode:'color'   },
+  photo:        { cp:8, ld:1,  fs:1,  br:0.8,  mode:'color'   },
+  logo:         { cp:4, ld:4,  fs:15, br:0.5,  mode:'color'   },
+  lineart:      { cp:4, ld:1,  fs:4,  br:0.3,  mode:'lineart' },
 };
+// Track active engine mode
+let engineMode = 'auto';
 let activePreset = null;
 function applyPreset(name) {
   const p = PRESETS[name]; if (!p) return;
@@ -1190,6 +1195,7 @@ function applyPreset(name) {
   activePreset = name;
   document.querySelectorAll('.btn-preset').forEach(b => b.classList.remove('active'));
   document.querySelector(`[onclick="applyPreset('${name}')"]`).classList.add('active');
+  engineMode = p.mode || 'auto';
   const set = (id, lbl, val, dec=0) => { $(id).value=val; $(lbl).textContent=(+val).toFixed(dec); };
   set('blur-radius',     'v-br', p.br, 1);
   set('color-precision', 'v-cp', p.cp);
@@ -1673,6 +1679,7 @@ async function runVectorize(){
 
   const fd=new FormData();
   fd.append('file',currentFile);
+  fd.append('engine_mode',    engineMode);
   fd.append('blur_radius',    $('blur-radius').value);
   fd.append('color_precision',$('color-precision').value);
   fd.append('layer_difference',$('layer-difference').value);
@@ -1727,7 +1734,8 @@ async function runVectorize(){
 
     $('svg-meta').textContent=`${data.paths} paths`;
     const cacheTag = data.cached ? ' ⚡ cached' : '';
-    setStatus(`Done in ${data.elapsed}s${cacheTag}`,'ready');
+    const modeTag = data.engine_mode && data.engine_mode !== 'color' ? ` · ${data.engine_mode}` : '';
+    setStatus(`Done in ${data.elapsed}s${cacheTag}${modeTag}`,'ready');
     $('export-section').style.display='flex';
 
     // Setup reprocess button
