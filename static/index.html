@@ -1486,9 +1486,11 @@ document.addEventListener('paste',e=>{
 let currentFile=null, currentSvgText=null, currentSvgUrl=null, currentJobId=null, currentSrc=null;
 function fmt(b){return b>1048576?(b/1048576).toFixed(1)+'MB':Math.round(b/1024)+'KB';}
 function setStatus(msg,state=''){
-  $('status').textContent=msg;
-  $('status-dot').className='status-dot'+(state?' '+state:'');
-  mobileSetStatus(msg,state);
+  const sd=$('status-dot'), st=$('status');
+  if(sd) sd.className='status-dot'+(state?' '+state:'');
+  if(st) st.textContent=msg;
+  // Sync to mobile status bar
+  if(typeof mSetStatus==='function') mSetStatus(msg,state);
 }
 
 function load(f) {
@@ -1638,12 +1640,13 @@ function resetToUpload(){
   showUploadScreen();
   fi.value='';
   // Reset mobile state
-  if (isMobile()) {
-    $('mobile-btn-run').disabled = true;
-    $('mobile-btn-run').textContent = 'Convert →';
-    $('mobile-btn-run').style.display = 'block';
-    $('mobile-btn-cancel').style.display = 'none';
-    $('mobile-result-modal').classList.remove('visible');
+  if (_isMob()) {
+    document.getElementById('m-result').classList.remove('active');
+    document.getElementById('m-processing').classList.remove('active');
+    mEnableConvert(false);
+    mSetStatus('Upload an image to start', '');
+    // Reset preset to line art
+    mPreset('lineart');
   }
 }
 
