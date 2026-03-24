@@ -353,31 +353,43 @@ def vectorize(image_data: bytes,
         print('[engine] lineart pipeline → binary vtracer', flush=True)
 
     elif mode == 'text':
-        # Mixed content (colour + text): strong contrast + quantisation + tight tracing
-        # Better than variance-based text detection which misidentifies gradients as text
+        # Mixed content (colour + text/logos): preserve colours faithfully,
+        # just clean up edges and reduce noise for cleaner tracing.
+        # Key principle: minimum colour distortion, maximum edge clarity.
         rgb = img.convert('RGB')
-        # Step 1: Strong contrast enhancement to make text edges crisp
-        rgb = ImageEnhance.Contrast(rgb).enhance(1.8)
-        rgb = ImageEnhance.Sharpness(rgb).enhance(2.0)
-        # Step 2: Bilateral filter to smooth colour areas while keeping hard edges
-        rgb = _bilateral_filter(rgb, radius=0.5)
-        # Step 3: Quantise to clean colour set — reduces gradient noise
-        rgb = _quantise(rgb, n_colors=24)
-        # Step 4: Final unsharp to recover crisp boundaries after quantisation
-        rgb = rgb.filter(ImageFilter.UnsharpMask(radius=1.0, percent=120, threshold=2))
-        # Preserve alpha if present
+
+        # Step 1: Gentle colour correction — boost saturation slightly to
+        # compensate for any fading, DO NOT boost contrast (crushes light tones)
+        rgb = ImageEnhance.Color(rgb).enhance(1.15)
+
+        # Step 2: Bilateral filter — smooth noise without blurring edges
+        rgb = _bilateral_filter(rgb, radius=0.6)
+
+        # Step 3: Gentle sharpness to crisp up text boundaries only
+        rgb = ImageEnhance.Sharpness(rgb).enhance(1.4)
+
+        # Step 4: Light unsharp mask — recovers edge definition after smoothing
+        rgb = rgb.filter(ImageFilter.UnsharpMask(radius=0.8, percent=80, threshold=3))
+
+        # Step 5: Quantise with more colours to preserve gradient richness
+        # 48 colours is enough to approximate gradients without banding
+        rgb = _quantise(rgb, n_colors=48)
+
+        # Preserve alpha
         if img.mode == 'RGBA':
             rgb = rgb.convert('RGBA')
             rgb.putalpha(img.getchannel('A'))
         processed = rgb
-        # Tight corner detection + high precision for clean text paths
+
+        # Moderate corner threshold — sharper than colour but not as aggressive as lineart
+        # Higher color_precision to preserve more colour layers
         kwargs.setdefault('colormode', 'color')
         kwargs.setdefault('mode', 'spline')
-        kwargs.setdefault('corner_threshold', 60)
-        kwargs.setdefault('length_threshold', 3.0)
-        kwargs.setdefault('splice_threshold', 45)
-        kwargs.setdefault('path_precision', 3)
-        print('[engine] text/mixed pipeline → contrast+quantise+sharpen → colour vtracer', flush=True)
+        kwargs.setdefault('corner_threshold', 30)
+        kwargs.setdefault('length_threshold', 3.5)
+        kwargs.setdefault('splice_threshold', 30)
+        kwargs.setdefault('path_precision', 2)
+        print('[engine] text/mixed pipeline → gentle colour-preserving + edge clarity', flush=True)
 
     else:  # color
         processed = _preprocess_color(img, posterize_bits, unsharp_radius,
