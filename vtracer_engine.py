@@ -341,8 +341,8 @@ def vectorize(image_data: bytes,
 
     # Select pipeline and vtracer params
     if mode == 'lineart':
+        # Pure B&W — for sketches, outlines, black & white line drawings
         processed = _preprocess_lineart(img)
-        # Override vtracer to binary mode for clean lines
         kwargs['colormode'] = 'bw'
         kwargs.setdefault('filter_speckle', 4)
         kwargs.setdefault('corner_threshold', 60)
@@ -353,16 +353,18 @@ def vectorize(image_data: bytes,
         print('[engine] lineart pipeline → binary vtracer', flush=True)
 
     elif mode == 'text':
-        processed = _binarise_text_regions(img).convert('RGB')
-        # Use binary mode, tight parameters for clean text
-        kwargs['colormode'] = 'bw'
-        kwargs.setdefault('filter_speckle', 2)
-        kwargs.setdefault('corner_threshold', 60)
+        # Colour image with text — preserve colours, binarise text regions only
+        # Then run through colour vtracer so the output retains original colours
+        processed = _binarise_text_regions(img)
+        # Stay in colour mode — text regions are already B&W in the composite
+        kwargs.setdefault('colormode', 'color')
+        kwargs.setdefault('filter_speckle', 3)
+        kwargs.setdefault('corner_threshold', 30)
         kwargs.setdefault('length_threshold', 3.5)
-        kwargs.setdefault('splice_threshold', 45)
+        kwargs.setdefault('splice_threshold', 30)
         kwargs.setdefault('mode', 'spline')
-        kwargs.setdefault('path_precision', 3)
-        print('[engine] text pipeline → binary vtracer', flush=True)
+        kwargs.setdefault('path_precision', 2)
+        print('[engine] text pipeline → colour vtracer with binarised text regions', flush=True)
 
     else:  # color
         processed = _preprocess_color(img, posterize_bits, unsharp_radius,

@@ -899,9 +899,17 @@ body { height: calc(100vh); }
         <button class="btn-preset" onclick="applyPreset('logo')">Logo & Clipart</button>
         <div class="tip">Clean reduced-color output with precise edges. Ideal for logos and print-ready artwork.</div>
       </div>
-      <div class="has-tooltip" style="grid-column:1/-1;">
-        <button class="btn-preset btn-preset-wide" onclick="applyPreset('lineart')">Line Art &amp; Text</button>
-        <div class="tip">Binary mode with auto threshold. Best for sketches, line drawings, and images with text.</div>
+      <div class="has-tooltip">
+        <button class="btn-preset" onclick="applyPreset('lineart')">
+          <span class="preset-dot"></span>Line Art
+        </button>
+        <div class="tip">B&W binary mode. Best for sketches, outlines, and pure line drawings.</div>
+      </div>
+      <div class="has-tooltip">
+        <button class="btn-preset" onclick="applyPreset('text')">
+          <span class="preset-dot"></span>Text &amp; Mixed
+        </button>
+        <div class="tip">Colour output with clean text regions. Use when your image contains text alongside artwork.</div>
       </div>
     </div>
 
@@ -972,7 +980,8 @@ body { height: calc(100vh); }
     <button class="mobile-preset-btn" onclick="mobilePreset('illustration')">Artwork</button>
     <button class="mobile-preset-btn" onclick="mobilePreset('photo')">Rich Detail</button>
     <button class="mobile-preset-btn" onclick="mobilePreset('logo')">Logo & Clipart</button>
-  <button class="mobile-preset-btn" onclick="mobilePreset('lineart')">Line Art & Text</button>
+  <button class="mobile-preset-btn" onclick="mobilePreset('lineart')">Line Art</button>
+  <button class="mobile-preset-btn" onclick="mobilePreset('text')">Text & Mixed</button>
   </div>
   <!-- Mobile fine-tune panel (collapsible) -->
   <div id="mobile-finetune">
@@ -1185,6 +1194,7 @@ const PRESETS = {
   photo:        { cp:8, ld:1,  fs:1,  br:0.8,  mode:'color'   },
   logo:         { cp:4, ld:4,  fs:15, br:0.5,  mode:'color'   },
   lineart:      { cp:4, ld:1,  fs:4,  br:0.3,  mode:'lineart' },
+  text:         { cp:6, ld:2,  fs:3,  br:0.4,  mode:'text'    },
 };
 // Track active engine mode
 let engineMode = 'auto';
