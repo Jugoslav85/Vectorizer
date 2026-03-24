@@ -7,7 +7,7 @@ Sizing (area-based):
 - 1.5–2MP      → untouched
 
 Pipeline options (selected by mode):
-  COLOR:   BilateralFilter → MaxFilter → UnsharpMask → Posterize/Quantise → vtracer (color)
+  COLOR:   BilateralFilter → UnsharpMask → Posterize/Quantise → vtracer (color)
   LINEART: Contrast boost → BilateralFilter → Otsu threshold → vtracer (binary)
   TEXT:    Contrast boost → Text region binarisation → vtracer (binary)
 
@@ -118,7 +118,7 @@ def _binarise_text_regions(img: Image.Image) -> Image.Image:
                 draw.rectangle(box, fill=255)
 
     # Dilate mask slightly to cover full letters
-    text_mask = text_mask.filter(ImageFilter.MaxFilter(3))
+    text_mask = text_mask.filter(ImageFilter.MaxFilter(1))
 
     # Binarise the text regions using Otsu
     binary = _otsu_threshold(gray)
@@ -146,7 +146,6 @@ def _preprocess_color(img: Image.Image, bits: int, unsharp_radius: float,
     """Standard pipeline for colour images: bilateral → unsharp → posterize."""
     rgb = img.convert('RGB')
     rgb = _bilateral_filter(rgb, blur_radius)
-    rgb = rgb.filter(ImageFilter.MaxFilter(1))
     rgb = rgb.filter(ImageFilter.UnsharpMask(
         radius=unsharp_radius, percent=unsharp_percent, threshold=unsharp_threshold))
     posterized = ImageOps.posterize(rgb, bits)
