@@ -851,6 +851,12 @@ body { height: calc(100vh); }
   font-size: 13px; font-family: var(--font-mono); cursor: pointer;
 }
 
+
+/* ── Output quality toggles ── */
+.toggle-row{margin-bottom:10px;}
+.toggle-label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-family:var(--font-ui);font-weight:700;color:var(--text);}
+.toggle-label input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px;cursor:pointer;flex-shrink:0;}
+.toggle-desc{font-size:11px;color:var(--dim);font-family:var(--font-mono);margin-top:3px;margin-left:23px;line-height:1.4;}
 </style>
 </head>
 <body>
@@ -1545,6 +1551,15 @@ function load(f) {
       'posterize-bits':7,'v-pb':7,'unsharp-percent':90,'v-up':90,
       'simplify-epsilon':0.3,'v-se':'0.3',
       'unsharp-radius':0.5,'v-ur':'0.5'};
+    $('opt-gap-filler').checked = true;
+    $('opt-replace-shapes').checked = true;
+    $('opt-snap-palette').checked = true;
+    $('opt-group-colours').checked = false;
+  // Reset checkboxes to defaults
+  $('opt-gap-filler').checked = true;
+  $('opt-replace-shapes').checked = true;
+  $('opt-snap-palette').checked = true;
+  $('opt-group-colours').checked = false;
     Object.entries(defs).forEach(([id,val])=>{
       const el=$(id); if(!el) return;
       if(el.tagName==='INPUT') el.value=val; else el.textContent=val;
@@ -1799,6 +1814,10 @@ async function runVectorize(){
   fd.append('unsharp_percent',  $('unsharp-percent').value);
   fd.append('unsharp_radius',   $('unsharp-radius').value);
   fd.append('simplify_epsilon', $('simplify-epsilon').value);
+  fd.append('use_gap_filler',   $('opt-gap-filler').checked   ? '1' : '0');
+  fd.append('replace_shapes',   $('opt-replace-shapes').checked ? '1' : '0');
+  fd.append('snap_palette',     $('opt-snap-palette').checked  ? '1' : '0');
+  fd.append('group_colours',    $('opt-group-colours').checked ? '1' : '0');
   fd.append('color_precision',$('color-precision').value);
   fd.append('layer_difference',$('layer-difference').value);
   fd.append('filter_speckle', $('filter-speckle').value);

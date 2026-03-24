@@ -168,6 +168,10 @@ def api_vectorize():
         "unsharp_percent":  gi("unsharp_percent",   90),
         "unsharp_radius":   gf("unsharp_radius",    0.5),
         "simplify_epsilon": gf("simplify_epsilon",  0.3),
+        "use_gap_filler":   request.form.get("use_gap_filler",   "1") == "1",
+        "replace_shapes":   request.form.get("replace_shapes",   "1") == "1",
+        "snap_palette":     request.form.get("snap_palette",     "1") == "1",
+        "group_colours":    request.form.get("group_colours",    "0") == "1",
     }
 
     # ── Cache lookup ──
@@ -214,6 +218,10 @@ def api_vectorize():
             filter_speckle    = settings["filter_speckle"],
             color_precision   = settings["color_precision"],
             layer_difference  = settings["layer_difference"],
+            use_gap_filler    = settings["use_gap_filler"],
+            replace_shapes    = settings["replace_shapes"],
+            snap_palette      = settings["snap_palette"],
+            group_colours     = settings["group_colours"],
         )
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         future = executor.submit(_run)

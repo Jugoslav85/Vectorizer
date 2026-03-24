@@ -520,6 +520,9 @@ def vectorize_layered(image_data: bytes,
         svg = _remove_short_paths(svg, min_size=2.0)
         if simplify:
             svg = _simplify_svg_paths(svg, epsilon=simplify_epsilon)
+        svg = add_gap_filler(svg, stroke_width=0.5)
+        svg = replace_geometric_shapes(svg, min_area=50.0)
+        svg = snap_palette(svg, Image.open(io.BytesIO(image_data)).convert('RGBA'))
 
         print(f'[layered] {svg.count("<path")} paths after post-processing',
               flush=True)
@@ -563,9 +566,13 @@ def vectorize(image_data: bytes,
               unsharp_percent: int   = 90,
               unsharp_threshold: int = 4,
               blur_radius: float     = 0.8,
-              engine_mode: str       = 'auto',   # 'auto' | 'color' | 'lineart' | 'text'
+              engine_mode: str       = 'auto',
               simplify: bool         = True,
               simplify_epsilon: float = 0.3,
+              use_gap_filler: bool   = True,
+              replace_shapes: bool   = True,
+              snap_palette: bool     = True,
+              group_colours: bool    = False,
               **kwargs) -> str:
 
     # Layered mode runs its own pipeline
@@ -668,10 +675,18 @@ def vectorize(image_data: bytes,
         paths_before = svg.count('<path')
         print(f'[engine] {paths_before} paths before post-processing', flush=True)
 
-        # Post-processing
+        # Post-processing pipeline
         svg = _remove_short_paths(svg, min_size=2.0)
         if simplify:
             svg = _simplify_svg_paths(svg, epsilon=simplify_epsilon)
+        if use_gap_filler:
+            svg = add_gap_filler(svg, stroke_width=0.5)
+        if replace_shapes and mode != 'lineart':
+            svg = replace_geometric_shapes(svg, min_area=50.0)
+        if snap_palette and mode != 'lineart':
+            svg = snap_palette(svg, img)
+        if group_colours:
+            svg = group_by_colour(svg)
         paths_after = svg.count('<path')
         print(f'[engine] {paths_after} paths after post-processing '
               f'(removed {paths_before - paths_after})', flush=True)
@@ -680,3 +695,281 @@ def vectorize(image_data: bytes,
     finally:
         if inp and os.path.exists(inp): os.unlink(inp)
         if out and os.path.exists(out): os.unlink(out)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# POST-PROCESSING FEATURES
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ── 1. Palette snapping ───────────────────────────────────────────────────────
+
+def _hex_to_rgb(h: str):
+    h = h.lstrip('#')
+    return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+
+def _rgb_to_hex(r, g, b) -> str:
+    return '#{:02x}{:02x}{:02x}'.format(r, g, b)
+
+def _colour_distance(c1, c2) -> float:
+    """Euclidean distance in RGB space, normalised to 0-1."""
+    return math.sqrt(sum((a - b) ** 2 for a, b in zip(c1, c2))) / 441.67  # 441.67 = sqrt(3*255^2)
+
+def _extract_svg_palette(svg: str) -> dict:
+    """
+    Extract all unique fill colours from an SVG and their frequency.
+    Returns {hex_colour: count}.
+    """
+    import re as _re
+    fills = _re.findall(r'fill="(#[0-9a-fA-F]{6})"', svg)
+    counts = {}
+    for f in fills:
+        counts[f.lower()] = counts.get(f.lower(), 0) + 1
+    return counts
+
+def snap_palette(svg: str, original_img: 'Image.Image',
+                 tolerance: float = 0.06) -> str:
+    """
+    Auto palette snapping:
+    1. Sample the original image to find its dominant colours
+    2. For each colour in the SVG output, find the nearest original colour
+       within tolerance and snap to it
+    3. This restores minority colours (red, gold) that quantisation merged
+
+    tolerance: max colour distance (0-1) to snap. 0.06 ≈ 15/255 per channel.
+    """
+    import re as _re
+
+    # Sample original image colours
+    rgb = original_img.convert('RGB')
+    small = rgb.resize((128, 128), Image.LANCZOS)
+    # Get dominant colours from original via quantisation
+    try:
+        orig_quant = small.quantize(colors=64, method=Image.Quantize.MEDIANCUT, dither=0)
+        orig_palette_raw = orig_quant.getpalette()[:64*3]
+        orig_colours = []
+        for i in range(0, len(orig_palette_raw), 3):
+            r, g, b = orig_palette_raw[i], orig_palette_raw[i+1], orig_palette_raw[i+2]
+            orig_colours.append((r, g, b))
+    except Exception:
+        return svg  # fail gracefully
+
+    # Get SVG colours
+    svg_colours = _extract_svg_palette(svg)
+    if not svg_colours:
+        return svg
+
+    # Build snap map: svg_colour → snapped_colour
+    snap_map = {}
+    for svg_hex, count in svg_colours.items():
+        try:
+            svg_rgb = _hex_to_rgb(svg_hex)
+        except Exception:
+            continue
+        # Find nearest original colour
+        best_dist = float('inf')
+        best_orig = None
+        for orig_rgb in orig_colours:
+            d = _colour_distance(svg_rgb, orig_rgb)
+            if d < best_dist:
+                best_dist = d
+                best_orig = orig_rgb
+        if best_orig and best_dist <= tolerance:
+            snapped = _rgb_to_hex(*best_orig)
+            if snapped != svg_hex:
+                snap_map[svg_hex] = snapped
+                print(f'[palette] snap {svg_hex} → {snapped} (dist={best_dist:.3f})',
+                      flush=True)
+
+    if not snap_map:
+        return svg
+
+    # Apply snap map to SVG
+    for old_col, new_col in snap_map.items():
+        svg = svg.replace(f'fill="{old_col}"', f'fill="{new_col}"')
+        svg = svg.replace(f'fill="{old_col.upper()}"', f'fill="{new_col}"')
+    print(f'[palette] snapped {len(snap_map)} colours', flush=True)
+    return svg
+
+
+# ── 2. Geometric shape replacement ───────────────────────────────────────────
+
+def _parse_path_points(d: str):
+    """Extract all coordinate pairs from an SVG path d attribute."""
+    import re as _re
+    nums = [float(x) for x in _re.findall(r'[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?', d)]
+    points = [(nums[i], nums[i+1]) for i in range(0, len(nums)-1, 2)]
+    return points
+
+def _bounding_box(points):
+    """Return (min_x, min_y, max_x, max_y) for a list of points."""
+    xs = [p[0] for p in points]
+    ys = [p[1] for p in points]
+    return min(xs), min(ys), max(xs), max(ys)
+
+def _is_circle(points, tolerance: float = 0.15) -> tuple:
+    """
+    Test if a path approximates a circle.
+    Returns (True, cx, cy, r) or (False, None, None, None).
+    """
+    if len(points) < 8:
+        return False, None, None, None
+    xs = [p[0] for p in points]
+    ys = [p[1] for p in points]
+    cx = sum(xs) / len(xs)
+    cy = sum(ys) / len(ys)
+    dists = [math.hypot(p[0]-cx, p[1]-cy) for p in points]
+    r = sum(dists) / len(dists)
+    if r < 2:
+        return False, None, None, None
+    # Check how consistent the distances are
+    variance = sum((d - r)**2 for d in dists) / len(dists)
+    std_dev = math.sqrt(variance)
+    if (std_dev / r) <= tolerance:
+        return True, round(cx, 2), round(cy, 2), round(r, 2)
+    return False, None, None, None
+
+def _is_rectangle(points, tolerance: float = 0.12) -> tuple:
+    """
+    Test if a path approximates a rectangle.
+    Returns (True, x, y, w, h) or (False, ...).
+    Uses the bounding box approach — if points cluster near 4 corners, it's a rect.
+    """
+    if len(points) < 4:
+        return False, None, None, None, None
+    min_x, min_y, max_x, max_y = _bounding_box(points)
+    w = max_x - min_x
+    h = max_y - min_y
+    if w < 2 or h < 2:
+        return False, None, None, None, None
+    # Each point should be close to one of the 4 corners or 4 edges
+    corners = [(min_x, min_y), (max_x, min_y), (max_x, max_y), (min_x, max_y)]
+    total_dist = 0
+    for p in points:
+        min_d = min(math.hypot(p[0]-c[0], p[1]-c[1]) for c in corners)
+        # Also allow points along edges
+        edge_d = min(
+            abs(p[0] - min_x), abs(p[0] - max_x),
+            abs(p[1] - min_y), abs(p[1] - max_y)
+        )
+        total_dist += min(min_d, edge_d)
+    avg_dist = total_dist / len(points)
+    diag = math.hypot(w, h)
+    if (avg_dist / diag) <= tolerance:
+        return True, round(min_x, 2), round(min_y, 2), round(w, 2), round(h, 2)
+    return False, None, None, None, None
+
+def replace_geometric_shapes(svg: str, min_area: float = 50.0) -> str:
+    """
+    Post-process SVG to replace approximate circles and rectangles
+    with clean SVG primitives (<circle>, <rect>).
+    Preserves fill colour. Only replaces shapes above min_area px².
+    """
+    import re as _re
+
+    def replace_path(m):
+        full_tag = m.group(0)
+        d = m.group(1)
+        fill_match = _re.search(r'fill="([^"]+)"', full_tag)
+        fill = fill_match.group(1) if fill_match else '#000000'
+
+        points = _parse_path_points(d)
+        if len(points) < 4:
+            return full_tag
+
+        min_x, min_y, max_x, max_y = _bounding_box(points)
+        area = (max_x - min_x) * (max_y - min_y)
+        if area < min_area:
+            return full_tag
+
+        # Try circle first
+        is_circ, cx, cy, r = _is_circle(points)
+        if is_circ and math.pi * r * r >= min_area:
+            print(f'[shapes] circle cx={cx} cy={cy} r={r} fill={fill}', flush=True)
+            return f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{fill}"/>'
+
+        # Try rectangle
+        is_rect, rx, ry, rw, rh = _is_rectangle(points)
+        if is_rect and rw * rh >= min_area:
+            print(f'[shapes] rect x={rx} y={ry} w={rw} h={rh} fill={fill}', flush=True)
+            return f'<rect x="{rx}" y="{ry}" width="{rw}" height="{rh}" fill="{fill}"/>'
+
+        return full_tag
+
+    result = _re.sub(r'<path[^>]*\sd="([^"]+)"[^/]*/>', replace_path, svg)
+    return result
+
+
+# ── 3. Gap filler ─────────────────────────────────────────────────────────────
+
+def add_gap_filler(svg: str, stroke_width: float = 0.5) -> str:
+    """
+    Add a thin stroke matching the fill colour to every filled path.
+    This eliminates the hairline white gaps between adjacent shapes
+    that appear in many SVG viewers due to antialiasing.
+    Only applies to paths with a solid fill colour (not 'none' or 'white').
+    """
+    import re as _re
+
+    def add_stroke(m):
+        tag = m.group(0)
+        fill_match = _re.search(r'fill="(#[0-9a-fA-F]{6})"', tag)
+        if not fill_match:
+            return tag
+        fill = fill_match.group(1)
+        # Skip white/near-white and transparent
+        try:
+            r, g, b = _hex_to_rgb(fill)
+            if r > 240 and g > 240 and b > 240:
+                return tag  # skip white
+        except Exception:
+            return tag
+        # Already has a stroke — don't double-add
+        if 'stroke=' in tag:
+            return tag
+        # Add stroke before closing />
+        return tag[:-2] + f' stroke="{fill}" stroke-width="{stroke_width}"/>'
+
+    return _re.sub(r'<path[^/]*/>', add_stroke, svg)
+
+
+# ── 4. Group by colour ────────────────────────────────────────────────────────
+
+def group_by_colour(svg: str) -> str:
+    """
+    Group SVG paths by fill colour into <g id="colour-XXXXXX"> elements.
+    Makes it easy to select all elements of a colour in Illustrator/Inkscape.
+    """
+    import re as _re
+    from collections import defaultdict
+
+    # Extract all paths with their fill
+    paths = _re.findall(r'<(?:path|circle|rect)[^/]*/>', svg)
+    if not paths:
+        return svg
+
+    groups = defaultdict(list)
+    ungrouped = []
+    for p in paths:
+        fill_m = _re.search(r'fill="(#[0-9a-fA-F]{6})"', p)
+        if fill_m:
+            groups[fill_m.group(1).lower()].append(p)
+        else:
+            ungrouped.append(p)
+
+    # Build grouped SVG content
+    grouped_content = []
+    for colour, elements in sorted(groups.items(),
+                                    key=lambda x: -len(x[1])):
+        colour_id = 'colour-' + colour.lstrip('#')
+        grouped_content.append(f'  <g id="{colour_id}" fill="{colour}">')
+        for el in elements:
+            grouped_content.append('    ' + el)
+        grouped_content.append('  </g>')
+    for el in ungrouped:
+        grouped_content.append('  ' + el)
+
+    # Replace inner SVG content
+    inner = '\n'.join(grouped_content)
+    result = _re.sub(r'(<svg[^>]+>).*?(</svg>)', r'\1\n' + inner + r'\n\2',
+                     svg, flags=_re.DOTALL)
+    return result
