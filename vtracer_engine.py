@@ -571,7 +571,7 @@ def vectorize(image_data: bytes,
               simplify_epsilon: float = 0.3,
               use_gap_filler: bool   = True,
               replace_shapes: bool   = True,
-              snap_palette: bool     = True,
+              do_snap_palette: bool  = True,
               group_colours: bool    = False,
               **kwargs) -> str:
 
@@ -585,6 +585,7 @@ def vectorize(image_data: bytes,
         )
 
     img = Image.open(io.BytesIO(image_data)).convert('RGBA')
+    original_img = img.copy()  # keep original colours for palette snapping
     img = _resize(img)
     w, h = img.size
     print(f'[engine] input {w}x{h}', flush=True)
@@ -683,8 +684,8 @@ def vectorize(image_data: bytes,
             svg = add_gap_filler(svg, stroke_width=0.5)
         if replace_shapes and mode != 'lineart':
             svg = replace_geometric_shapes(svg, min_area=50.0)
-        if snap_palette and mode != 'lineart':
-            svg = snap_palette(svg, img)
+        if do_snap_palette and mode != 'lineart':
+            svg = snap_palette(svg, original_img)
         if group_colours:
             svg = group_by_colour(svg)
         paths_after = svg.count('<path')

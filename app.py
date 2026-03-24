@@ -220,7 +220,7 @@ def api_vectorize():
             layer_difference  = settings["layer_difference"],
             use_gap_filler    = settings["use_gap_filler"],
             replace_shapes    = settings["replace_shapes"],
-            snap_palette      = settings["snap_palette"],
+            do_snap_palette   = settings["snap_palette"],
             group_colours     = settings["group_colours"],
         )
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
