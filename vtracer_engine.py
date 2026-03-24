@@ -138,63 +138,6 @@ def _quantise(img: Image.Image, n_colors: int) -> Image.Image:
     return quantised.convert('RGB')
 
 
-def _preserve_minority_colours(original: Image.Image, quantised: Image.Image,
-                                 min_coverage: float = 0.0008) -> Image.Image:
-    """
-    Detect visually significant colours in the original that were lost during
-    quantisation and restore them by replacing the nearest quantised colour
-    in those regions.
-
-    min_coverage: minimum fraction of total pixels a colour cluster must cover
-                  to be considered significant (0.0008 = ~0.08% of pixels).
-    """
-    from collections import Counter
-
-    orig_rgb = original.convert('RGB')
-    quant_rgb = quantised.convert('RGB')
-    w, h = orig_rgb.size
-    total_pixels = w * h
-
-    # Sample original at reduced size for speed
-    sample_size = (min(w, 128), min(h, 128))
-    orig_small = orig_rgb.resize(sample_size, Image.LANCZOS)
-    quant_small = quant_rgb.resize(sample_size, Image.LANCZOS)
-
-    orig_pixels = list(orig_small.getdata())
-    quant_pixels = list(quant_small.getdata())
-
-    # Bucket original colours into coarse bins (32-level per channel)
-    def bucket(r, g, b, step=32):
-        return (r//step*step, g//step*step, b//step*step)
-
-    orig_buckets = Counter(bucket(*p) for p in orig_pixels)
-    quant_buckets = Counter(bucket(*p) for p in quant_pixels)
-
-    min_count = max(2, int(len(orig_pixels) * min_coverage))
-    result = quant_rgb.copy()
-
-    for colour, count in orig_buckets.items():
-        if count < min_count:
-            continue
-        # Check if this colour bucket survived quantisation
-        if quant_buckets.get(colour, 0) < min_count // 2:
-            # Colour was lost — find pixels in the original that had this colour
-            # and paint them back with the original colour
-            r0, g0, b0 = colour
-            orig_arr = list(orig_rgb.getdata())
-            result_arr = list(result.getdata())
-            restored = 0
-            for i, (r, g, b) in enumerate(orig_arr):
-                if bucket(r, g, b) == colour:
-                    result_arr[i] = (r, g, b)
-                    restored += 1
-            if restored > 0:
-                result.putdata(result_arr)
-                print(f'[engine] restored minority colour {colour} '
-                      f'({restored} px)', flush=True)
-
-    return result
-
 
 # ── Standard colour preprocessing ────────────────────────────────────────────
 def _preprocess_color(img: Image.Image, bits: int, unsharp_radius: float,
@@ -410,46 +353,48 @@ def vectorize(image_data: bytes,
         print('[engine] lineart pipeline → binary vtracer', flush=True)
 
     elif mode == 'text':
-        # Mixed content (colour + text/logos): preserve colours faithfully
-        # including minority colours (red, gold), smooth letter edges.
+        # Mixed content (colour + text/logos): preserve colours faithfully,
+        # smooth letter/logo edges using the same bilateral approach as lineart.
         rgb = img.convert('RGB')
-        original_for_restore = rgb.copy()  # keep original for minority colour restore
 
-        # Step 1: Saturation boost — separates colours before quantisation
-        # helps red/gold stay distinct from dominant greens/blues
-        rgb = ImageEnhance.Color(rgb).enhance(1.25)
+        # Step 1: Strong saturation boost to push minority colours (red, gold)
+        # far enough from dominant colours that quantisation won't merge them
+        rgb = ImageEnhance.Color(rgb).enhance(1.5)
 
-        # Step 2: Bilateral filter — smooths noise, preserves hard edges
-        rgb = _bilateral_filter(rgb, radius=0.6)
+        # Step 2: Contrast boost — just enough to separate colour boundaries
+        # without crushing light tones (keep below 1.4)
+        rgb = ImageEnhance.Contrast(rgb).enhance(1.3)
 
-        # Step 3: Sharpen BEFORE quantisation so letter/logo boundaries
-        # are hard edges when vtracer traces them → smoother curves
-        rgb = ImageEnhance.Sharpness(rgb).enhance(1.6)
-        rgb = rgb.filter(ImageFilter.UnsharpMask(radius=1.0, percent=100, threshold=2))
+        # Step 3: Bilateral filter with higher radius — same as lineart magic.
+        # Smooths noise WITHIN colour regions, preserves hard edges between them.
+        # This is what makes letter curves smooth instead of jagged.
+        rgb = _bilateral_filter(rgb, radius=1.2)
 
-        # Step 4: Quantise with 64 colours — enough for gradient richness
-        # and minority colours (red dots, gold rims) to survive
-        quantised = _quantise(rgb, n_colors=64)
+        # Step 4: Strong sharpening AFTER bilateral, BEFORE quantisation.
+        # Bilateral softened edges slightly — unsharp mask recovers them hard.
+        # Hard edges going into vtracer = smooth spline output.
+        rgb = ImageEnhance.Sharpness(rgb).enhance(1.8)
+        rgb = rgb.filter(ImageFilter.UnsharpMask(radius=1.2, percent=150, threshold=1))
 
-        # Step 5: Restore minority colours lost during quantisation
-        # (red 7UP dot, gold wheel rims, white swatches, etc.)
-        quantised = _preserve_minority_colours(original_for_restore, quantised,
-                                                min_coverage=0.0006)
+        # Step 5: Quantise to 80 colours — more colours = minority colours
+        # (red, gold) less likely to be merged into dominant green/blue
+        rgb = _quantise(rgb, n_colors=80)
 
         # Preserve alpha
         if img.mode == 'RGBA':
-            quantised = quantised.convert('RGBA')
-            quantised.putalpha(img.getchannel('A'))
-        processed = quantised
+            rgb = rgb.convert('RGBA')
+            rgb.putalpha(img.getchannel('A'))
+        processed = rgb
 
-        # Higher corner threshold → smoother letter/logo curves
+        # High corner_threshold — same principle as lineart.
+        # Only corners at genuine direction changes, everything else smooth curves.
         kwargs.setdefault('colormode', 'color')
         kwargs.setdefault('mode', 'spline')
-        kwargs.setdefault('corner_threshold', 52)
-        kwargs.setdefault('length_threshold', 3.2)
+        kwargs.setdefault('corner_threshold', 55)
+        kwargs.setdefault('length_threshold', 3.0)
         kwargs.setdefault('splice_threshold', 45)
         kwargs.setdefault('path_precision', 3)
-        print('[engine] text/mixed → sat+bilateral+sharpen+quantise64+minority restore',
+        print('[engine] text/mixed → sat1.5+contrast1.3+bilateral1.2+unsharp150+quant80',
               flush=True)
 
     else:  # color
