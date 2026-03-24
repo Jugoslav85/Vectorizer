@@ -654,6 +654,46 @@ body { padding-top: 52px; }
     color: var(--accent);
   }
 
+  /* ── Image preview bar (shown after file loaded) ── */
+  #m-thumb-bar {
+    display: none;
+    position: fixed;
+    top: 52px; left: 0; right: 0;
+    z-index: 40;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  #m-thumb-bar.visible { display: flex !important; }
+  /* When thumb bar visible, push presets and main content down */
+  #m-thumb-bar.visible ~ * { margin-top: 62px; }
+  #m-presets { transition: margin-top .15s; }
+  #m-thumb-img {
+    width: 44px; height: 44px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 1.5px solid var(--border2);
+    flex-shrink: 0;
+  }
+  #m-thumb-info { flex: 1; min-width: 0; }
+  #m-thumb-name {
+    font-size: 13px; font-family: var(--font-ui); font-weight: 700;
+    color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #m-thumb-size { font-size: 11px; font-family: var(--font-mono); color: var(--dim); margin-top: 1px; }
+  #m-thumb-remove {
+    background: none; border: none; font-size: 18px; color: var(--dim);
+    cursor: pointer; padding: 4px; flex-shrink: 0;
+    line-height: 1;
+  }
+  /* Push upload screen down when thumb bar is visible */
+  #m-thumb-bar.visible ~ * #upload-screen,
+  body.m-has-file #upload-screen {
+    padding-top: 8px;
+  }
+
   /* ── Bottom action bar: pinned to bottom ── */
   #m-bar {
     display: flex !important;
@@ -1029,6 +1069,16 @@ body { padding-top: 52px; }
     <button class="m-preset" onclick="mPreset('detailed')">Detailed</button>
   </div>
 
+  <!-- MOBILE IMAGE PREVIEW: shows after file loaded -->
+  <div id="m-thumb-bar">
+    <img id="m-thumb-img" src="" alt=""/>
+    <div id="m-thumb-info">
+      <div id="m-thumb-name"></div>
+      <div id="m-thumb-size"></div>
+    </div>
+    <button id="m-thumb-remove" onclick="mRemoveImage()">✕</button>
+  </div>
+
   <!-- MOBILE BOTTOM BAR: convert / status — always visible -->
   <div id="m-bar">
     <div id="m-status-row">
@@ -1212,10 +1262,24 @@ $('toggle-btn').addEventListener('click', () => {
 let advancedOpen = false;
 function toggleAdvanced() {
   advancedOpen = !advancedOpen;
-  $('btn-advanced').classList.toggle('open', advancedOpen);
-  $('btn-advanced').textContent = advancedOpen ? '▴ Fine-tune settings' : '▾ Fine-tune settings';
-  $('advanced-panel').style.maxHeight = advancedOpen
-    ? $('advanced-panel').scrollHeight + 2000 + 'px' : '0';
+  const panel = $('advanced-panel');
+  const btn   = $('btn-advanced');
+  btn.classList.toggle('open', advancedOpen);
+  btn.textContent = advancedOpen ? '▴ Fine-tune settings' : '▾ Fine-tune settings';
+  if (advancedOpen) {
+    panel.style.maxHeight = 'none';
+    const h = panel.scrollHeight;
+    panel.style.maxHeight = '0';
+    panel.offsetHeight;
+    panel.style.maxHeight = h + 'px';
+    // Scroll btn into view so user can see start of sliders
+    setTimeout(() => btn.scrollIntoView({behavior:'smooth', block:'nearest'}), 50);
+  } else {
+    panel.style.maxHeight = '0';
+    // Scroll back to top of sidebar
+    const inner = document.querySelector('.sidebar-inner');
+    if (inner) setTimeout(() => inner.scrollTo({top:0, behavior:'smooth'}), 50);
+  }
 }
 
 // ── Range labels ───────────────────────────────────────────
@@ -1268,10 +1332,15 @@ let settingsSnapshot = null;
 let hasResult = false;
 function getSettingsSnapshot() {
   return JSON.stringify({
-    br: $('blur-radius').value,
-    cp: $('color-precision').value,
-    ld: $('layer-difference').value,
-    fs: $('filter-speckle').value,
+    br:  $('blur-radius').value,
+    cp:  $('color-precision').value,
+    ld:  $('layer-difference').value,
+    fs:  $('filter-speckle').value,
+    pb:  $('posterize-bits').value,
+    ur:  $('unsharp-radius').value,
+    up:  $('unsharp-percent').value,
+    se:  $('simplify-epsilon').value,
+    mode: engineMode,
     preset: activePreset,
   });
 }
@@ -1454,6 +1523,9 @@ function mResultClose() {
 
 function mNewImage() {
   document.getElementById('m-result').classList.remove('active');
+  document.getElementById('m-thumb-bar')?.classList.remove('visible');
+  const presetsEl = document.getElementById('m-presets');
+  if (presetsEl) presetsEl.style.marginTop = '';
   resetToUpload();
 }
 
@@ -1468,6 +1540,41 @@ function mOnFileLoaded() {
   if (!_isMob()) return;
   mEnableConvert(true);
   mSetStatus('Ready — tap Convert', 'ready');
+
+  // Show thumbnail
+  if (currentFile) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = document.getElementById('m-thumb-img');
+      const name = document.getElementById('m-thumb-name');
+      const size = document.getElementById('m-thumb-size');
+      if (img) img.src = e.target.result;
+      if (name) name.textContent = currentFile.name;
+      if (size) {
+        const kb = currentFile.size < 1048576
+          ? Math.round(currentFile.size/1024) + ' KB'
+          : (currentFile.size/1048576).toFixed(1) + ' MB';
+        size.textContent = kb + ' · Ready to convert';
+      }
+      const thumbBar = document.getElementById('m-thumb-bar');
+      thumbBar?.classList.add('visible');
+      // Shift presets down to clear thumb bar
+      const presetsEl = document.getElementById('m-presets');
+      if (presetsEl && thumbBar) {
+        presetsEl.style.marginTop = thumbBar.offsetHeight + 'px';
+      }
+    };
+    reader.readAsDataURL(currentFile);
+  }
+}
+
+function mRemoveImage() {
+  document.getElementById('m-thumb-bar')?.classList.remove('visible');
+  const img = document.getElementById('m-thumb-img');
+  if (img) img.src = '';
+  const presetsEl = document.getElementById('m-presets');
+  if (presetsEl) presetsEl.style.marginTop = '';
+  resetToUpload();
 }
 
 // ── Init ──────────────────────────────────────────────────────
@@ -1512,6 +1619,33 @@ window.addEventListener('resize',()=>{if(imgW)fitZoom();});
 
 // ── File handling ──────────────────────────────────────────
 const dz=$('dz'), fi=$('file-input');
+// ── Full-page drag anywhere ───────────────────────────────────────────────────
+let _dragDepth = 0;
+const _dragAllowed = new Set(['.png','.jpg','.jpeg','.webp','.heic','.heif']);
+document.addEventListener('dragenter', e => {
+  if (!e.dataTransfer || !e.dataTransfer.types.includes('Files')) return;
+  _dragDepth++;
+  if (_dragDepth === 1) $('drag-overlay').classList.add('active');
+  e.preventDefault();
+}, false);
+document.addEventListener('dragleave', () => {
+  _dragDepth = Math.max(0, _dragDepth - 1);
+  if (_dragDepth === 0) $('drag-overlay').classList.remove('active');
+}, false);
+document.addEventListener('dragover', e => {
+  if (e.dataTransfer && e.dataTransfer.types.includes('Files')) e.preventDefault();
+}, false);
+document.addEventListener('drop', e => {
+  _dragDepth = 0;
+  $('drag-overlay').classList.remove('active');
+  const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!file) return;
+  e.preventDefault();
+  const ext = (file.name.match(/\.[^.]+$/) || [''])[0].toLowerCase();
+  if (!_dragAllowed.has(ext)) { setStatus('Unsupported file type', 'error'); return; }
+  load(file);
+}, false);
+
 dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');});
 dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
 dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');if(e.dataTransfer.files[0])load(e.dataTransfer.files[0]);});
@@ -2005,6 +2139,12 @@ async function loadSampleFromUrl() {
 window.addEventListener('DOMContentLoaded', loadSampleFromUrl);
 
 </script>
+
+<!-- Full-page drag overlay -->
+<div id="drag-overlay">
+  <div class="drag-msg">⬇ Drop your image</div>
+  <div class="drag-sub">PNG · JPG · WEBP · HEIC · max 20MB</div>
+</div>
 
 </body>
 </html>
