@@ -1,22 +1,22 @@
 """
 Vectorizer engine — vtracer backend.
 
+No blurring anywhere in the pipeline. Sharp edges preserved throughout.
+
 Pipeline (colour):
-  iterative_upscale (small images)
-  -> guided_smooth (edge-preserving, NumPy bilateral approx)
-  -> median_filter
-  -> unsharp_mask
-  -> max_colour_quantise  (hard palette cap)
-  -> post_quantise_smooth (boundary softening — the key smooth-lines fix)
-  -> colour_dedup         (merge near-identical palette entries)
+  iterative_upscale     (small images — LANCZOS only, no post-step blur)
+  -> guided_filter      (edge-preserving noise reduction via NumPy)
+  -> median_filter      (speckle removal, preserves hard edges)
+  -> max_colour_quantise (hard palette cap)
+  -> colour_dedup       (merge near-identical palette entries)
   -> vtracer color
-  -> svg_colour_dedup     (merge near-identical SVG fill colours)
+  -> svg_colour_dedup   (merge near-identical SVG fill colours)
   -> remove_short_paths
   -> rdp_simplify
 
 Pipeline (lineart):
-  iterative_upscale (small images)
-  -> guided_smooth
+  iterative_upscale
+  -> guided_filter
   -> median_filter
   -> contrast + sharpness boost
   -> otsu_threshold
@@ -60,28 +60,25 @@ def _count_unique_colours(img):
 
 def _iterative_upscale(img, target_px):
     """
-    For small images: upscale in 1.5x steps with unsharp mask between each
-    step, rather than one big LANCZOS jump. Produces noticeably sharper edges
-    that trace more cleanly.
+    For small images: upscale in 1.5x steps rather than one big LANCZOS jump.
+    LANCZOS is already the sharpest resampling filter available — no post-step
+    sharpening needed and no blur introduced.
     """
     w, h   = img.size
     pixels = w * h
     if pixels >= MIN_UPSCALE:
-        return img  # large enough — no upscale needed
+        return img
 
     print(f'[engine] iterative upscale {w}x{h} -> target {target_px//1000}k px', flush=True)
     current = img
     while True:
-        cw, ch  = current.size
-        cpx     = cw * ch
+        cw, ch = current.size
+        cpx    = cw * ch
         if cpx >= target_px:
             break
-        # Step: 1.5x or just enough to hit target, whichever is smaller
         scale   = min(1.5, math.sqrt(target_px / cpx))
         nw, nh  = int(cw * scale), int(ch * scale)
         current = current.resize((nw, nh), Image.LANCZOS)
-        # Sharpen after each step to restore edge definition
-        current = current.filter(ImageFilter.UnsharpMask(radius=0.6, percent=80, threshold=2))
         print(f'[engine]   step -> {nw}x{nh}', flush=True)
     return current
 
@@ -104,15 +101,13 @@ def _resize_down(img, target_px):
 
 def _guided_filter(img, radius=4, eps=0.02):
     """
-    Fast guided filter approximation (He et al. 2013).
-    Better than Gaussian for pre-trace smoothing: removes noise inside colour
-    regions while keeping colour boundaries crisp.
-    eps controls how strongly edges are preserved (lower = sharper edges kept).
-    No-op if NumPy not available.
+    Fast guided filter (He et al. 2013) — edge-preserving noise reduction.
+    Smooths noise INSIDE colour regions while keeping colour boundaries crisp.
+    eps controls edge sensitivity: lower = sharper edges preserved.
+    Returns image unchanged if NumPy not available (no blur fallback).
     """
     if not _NUMPY:
-        # Fallback: simple Gaussian
-        return img.filter(ImageFilter.GaussianBlur(radius=radius * 0.5))
+        return img  # skip rather than blur
 
     rgb  = img.convert('RGB')
     arr  = np.asarray(rgb, dtype=np.float32) / 255.0
@@ -166,16 +161,6 @@ def _quantise_palette(img, max_colors):
     rgb       = img.convert('RGB')
     quantised = rgb.quantize(colors=max_colors, method=Image.Quantize.MEDIANCUT, dither=0)
     return quantised.convert('RGB')
-
-
-def _post_quantise_smooth(img, radius=0.8):
-    """
-    Apply a light Gaussian blur AFTER quantisation.
-    This softens the stairstepped pixel boundaries between colour regions
-    before vtracer traces them, producing smoother spline fits.
-    The key insight: blur after quantise, not before.
-    """
-    return img.filter(ImageFilter.GaussianBlur(radius=radius))
 
 
 # ---------------------------------------------------------------------------
@@ -469,31 +454,26 @@ def _detect_mode(img):
 def vectorize(
     image_data,
     # Pre-processing
-    blur_radius         = 0.8,    # GaussianBlur radius (0 = off)
-    median_size         = 3,      # MedianFilter kernel (1 = off, odd)
-    morph_close_size    = 3,      # Morphological close for lineart (1 = off)
-    unsharp_radius      = 0.5,
-    unsharp_percent     = 90,
-    unsharp_threshold   = 4,
-    posterize_bits      = 6,      # kept for fallback; max_colors is preferred
-    # New quality controls
-    max_colors          = 32,     # hard palette cap before vtracer (0 = off)
-    guided_filter_radius= 4,      # guided filter radius (0 = off)
-    guided_filter_eps   = 0.02,   # guided filter edge sensitivity
-    color_dedup_thresh  = 12,     # pre-vtracer colour merge distance (0 = off)
-    svg_dedup_thresh    = 10,     # post-vtracer SVG fill merge distance (0 = off)
-    post_quant_smooth   = 0.8,    # blur radius after quantise (0 = off)
+    median_size          = 3,      # MedianFilter kernel (1 = off, odd)
+    morph_close_size     = 3,      # Morphological close for lineart (1 = off)
+    posterize_bits       = 6,      # fallback when max_colors = 0
+    # Quality controls
+    max_colors           = 32,     # hard palette cap before vtracer (0 = use posterize)
+    guided_filter_radius = 4,      # guided filter radius (0 = off)
+    guided_filter_eps    = 0.02,   # guided filter edge sensitivity
+    color_dedup_thresh   = 12,     # pre-vtracer colour merge distance (0 = off)
+    svg_dedup_thresh     = 10,     # post-vtracer SVG fill merge distance (0 = off)
     # Engine
-    engine_mode         = 'auto',
+    engine_mode          = 'auto',
     # vtracer
-    color_precision     = 6,
-    layer_difference    = 4,
-    filter_speckle      = 6,
-    corner_threshold    = 48,
-    splice_threshold    = 70,
+    color_precision      = 6,
+    layer_difference     = 4,
+    filter_speckle       = 6,
+    corner_threshold     = 48,
+    splice_threshold     = 70,
     # Post-processing
-    simplify            = True,
-    simplify_epsilon    = 0.3,
+    simplify             = True,
+    simplify_epsilon     = 0.3,
     **kwargs,
 ):
     img = Image.open(io.BytesIO(image_data)).convert('RGBA')
@@ -522,11 +502,9 @@ def vectorize(
     if mode == 'lineart':
         rgb = img.convert('RGB')
 
-        # 1. Guided filter (edge-preserving smooth)
+        # 1. Guided filter (edge-preserving noise reduction, no blurring)
         if guided_filter_radius > 0:
             rgb = _guided_filter(rgb, radius=guided_filter_radius, eps=guided_filter_eps)
-        elif blur_radius > 0:
-            rgb = rgb.filter(ImageFilter.GaussianBlur(radius=blur_radius))
 
         # 2. Median filter
         if median_size > 1:
@@ -566,41 +544,24 @@ def vectorize(
     else:  # color
         rgb = img.convert('RGB')
 
-        # 1. Guided filter (edge-preserving smooth) — replaces old blur+unsharp ordering
+        # 1. Guided filter (edge-preserving noise reduction, no blurring)
         if guided_filter_radius > 0:
             rgb = _guided_filter(rgb, radius=guided_filter_radius, eps=guided_filter_eps)
-        elif blur_radius > 0:
-            rgb = rgb.filter(ImageFilter.GaussianBlur(radius=blur_radius))
 
-        # 2. Median filter
+        # 2. Median filter — removes speckle without blurring edges
         if median_size > 1:
             ms  = median_size if median_size % 2 == 1 else median_size + 1
             rgb = rgb.filter(ImageFilter.MedianFilter(size=ms))
 
-        # 3. Unsharp mask — recovers edges after smoothing
-        if unsharp_percent > 0:
-            rgb = rgb.filter(ImageFilter.UnsharpMask(
-                radius=unsharp_radius,
-                percent=unsharp_percent,
-                threshold=unsharp_threshold,
-            ))
-
-        # 4. Quantise to hard colour cap (replaces posterize as primary simplifier)
+        # 3. Quantise to hard colour cap
         if max_colors > 0:
             rgb = _quantise_palette(rgb, max_colors)
         else:
-            # Fallback: posterize
             rgb = ImageOps.posterize(rgb, posterize_bits)
 
-        # 5. Colour deduplication — merge near-identical palette entries
+        # 4. Colour deduplication — merge near-identical palette entries
         if color_dedup_thresh > 0:
             rgb = _colour_dedup(rgb, threshold=color_dedup_thresh)
-
-        # 6. Post-quantise boundary smoothing — THE key smooth-lines fix
-        #    Softens stairstepped pixel boundaries between colour regions
-        #    so vtracer fits smoother splines rather than tracing staircase edges
-        if post_quant_smooth > 0:
-            rgb = _post_quantise_smooth(rgb, radius=post_quant_smooth)
 
         # Restore alpha
         if img.mode == 'RGBA':
@@ -625,7 +586,7 @@ def vectorize(
         print(
             f'[engine] color: guided={guided_filter_radius} median={median_size} '
             f'max_colors={max_colors} dedup={color_dedup_thresh} '
-            f'pqs={post_quant_smooth} corner={corner_threshold} splice={splice_threshold}',
+            f'corner={corner_threshold} splice={splice_threshold}',
             flush=True,
         )
 

@@ -508,7 +508,7 @@ def api_sample_image(filename):
     return send_file(p)
 
 @app.route("/api/vectorize", methods=["POST"])
-@limiter.limit("20 per hour;3 per minute")
+@limiter.limit("20 per hour;5 per minute")
 def api_vectorize():
     if "file" not in request.files:
         return jsonify({"error": "No file"}), 400
@@ -535,7 +535,6 @@ def api_vectorize():
         except: return d
 
     settings = {
-        "blur_radius":          gf("blur_radius",          0.8),
         "median_size":          gi("median_size",           3),
         "morph_close_size":     gi("morph_close_size",      3),
         "color_precision":      gi("color_precision",       6),
@@ -543,17 +542,13 @@ def api_vectorize():
         "filter_speckle":       gi("filter_speckle",        6),
         "engine_mode":          request.form.get("engine_mode", "auto"),
         "posterize_bits":       gi("posterize_bits",        6),
-        "unsharp_percent":      gi("unsharp_percent",       90),
-        "unsharp_radius":       gf("unsharp_radius",        0.5),
         "simplify_epsilon":     gf("simplify_epsilon",      0.3),
         "corner_threshold":     gi("corner_threshold",      48),
         "splice_threshold":     gi("splice_threshold",      70),
-        # New params
         "max_colors":           gi("max_colors",            32),
         "guided_filter_radius": gi("guided_filter_radius",  4),
         "color_dedup_thresh":   gi("color_dedup_thresh",    12),
         "svg_dedup_thresh":     gi("svg_dedup_thresh",      10),
-        "post_quant_smooth":    gf("post_quant_smooth",     0.8),
     }
 
     session_id = _get_session_id(request)
@@ -582,13 +577,9 @@ def api_vectorize():
     try:
         svg = vectorize(
             raw,
-            blur_radius          = settings["blur_radius"],
             median_size          = settings["median_size"],
             morph_close_size     = settings["morph_close_size"],
             posterize_bits       = settings["posterize_bits"],
-            unsharp_percent      = settings["unsharp_percent"],
-            unsharp_radius       = settings["unsharp_radius"],
-            unsharp_threshold    = 4,
             engine_mode          = settings["engine_mode"],
             simplify             = True,
             simplify_epsilon     = settings["simplify_epsilon"],
@@ -601,7 +592,6 @@ def api_vectorize():
             guided_filter_radius = settings["guided_filter_radius"],
             color_dedup_thresh   = settings["color_dedup_thresh"],
             svg_dedup_thresh     = settings["svg_dedup_thresh"],
-            post_quant_smooth    = settings["post_quant_smooth"],
         )
     except Exception as e:
         traceback.print_exc()
