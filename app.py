@@ -314,6 +314,38 @@ def stripe_webhook():
 
 # ── Validate key ──────────────────────────────────────────────────────────────
 
+@app.route("/api/resend-key", methods=["POST"])
+def api_resend_key():
+    data  = request.get_json(silent=True) or {}
+    email = str(data.get("email", "")).strip().lower()
+    if not email or "@" not in email:
+        return jsonify({"ok": False, "error": "Please enter a valid email address"}), 400
+    try:
+        with _db() as conn:
+            cur = _cursor(conn)
+            cur.execute(
+                _q("SELECT key, status, expires_at FROM pro_keys WHERE email = %s ORDER BY expires_at DESC LIMIT 1"),
+                (email,)
+            )
+            row = _fetchone(cur)
+    except Exception as e:
+        return jsonify({"ok": False, "error": "Database error"}), 500
+
+    if not row:
+        # Don't reveal whether email exists — just say sent
+        return jsonify({"ok": True})
+
+    from datetime import datetime, timezone
+    try:
+        expires = datetime.fromisoformat(row["expires_at"])
+        if row["status"] != "active" or expires < datetime.now(timezone.utc):
+            return jsonify({"ok": True})  # silently ignore revoked/expired
+    except Exception:
+        pass
+
+    _send_key_email(email, row["key"], is_renewal=False)
+    return jsonify({"ok": True})
+
 @app.route("/api/validate-key", methods=["POST"])
 def api_validate_key():
     data = request.get_json(silent=True) or {}
@@ -368,37 +400,6 @@ def eany(e):
 @app.route("/health")
 def health():
     return "ok", 200
-
-@app.route("/debug-key/<key>")
-def debug_key(key):
-    import hmac as _h, hashlib as _hs
-    secret = _KEY_SECRET
-    parts  = key.upper().strip().split("-")
-    if len(parts) != 5:
-        return f"BAD FORMAT: {parts}"
-    uid          = parts[1]
-    sig_provided = parts[2] + parts[3] + parts[4]
-    sig_expected = _h.new(secret.encode(), uid.encode(), _hs.sha256).hexdigest()[:12].upper()
-    hmac_ok      = _h.compare_digest(sig_provided, sig_expected)
-    try:
-        with _db() as conn:
-            cur = _cursor(conn)
-            cur.execute(_q("SELECT status, expires_at FROM pro_keys WHERE key = %s"),
-                        (key.upper().strip(),))
-            row = _fetchone(cur)
-        db_row = dict(row) if row else None
-    except Exception as e:
-        db_row = f"DB ERROR: {e}"
-    return {
-        "key":          key.upper(),
-        "secret_first8": secret[:8] + "...",
-        "uid":          uid,
-        "sig_provided": sig_provided,
-        "sig_expected": sig_expected,
-        "hmac_ok":      hmac_ok,
-        "db_row":       db_row,
-        "overall_valid": _validate_key(key),
-    }
 
 @app.route("/")
 def landing():

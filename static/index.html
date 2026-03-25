@@ -1753,7 +1753,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // Only show if they don't already have a stored key
     const alreadyHasKey = !!localStorage.getItem('scaylr-pro-key');
     if (!alreadyHasKey) {
-      setTimeout(showKeyModal, 600);
+      setTimeout(() => showKeyModal(true), 600);
     }
   }
 });
@@ -2541,17 +2541,73 @@ function closePaywall() {
 }
 
 // ── Key modal ─────────────────────────────────────────────────────
-function showKeyModal() {
+function showKeyModal(fromPayment) {
   closePaywall();
+  showEnterPanel();
   document.getElementById('key-modal').classList.add('active');
-  setTimeout(() => document.getElementById('key-input')?.focus(), 100);
-  // Pre-fill if something was typed before
+  if (fromPayment) {
+    // Coming straight from Stripe — update desc to mention email was sent
+    const desc = document.querySelector('#key-panel-enter .key-desc');
+    if (desc) desc.textContent = 'Your key has been emailed to you. Paste it below to activate Pro.';
+  }
+  setTimeout(() => document.getElementById('key-input')?.focus(), 150);
   document.getElementById('key-error')?.classList.remove('visible');
   document.getElementById('key-input')?.classList.remove('error');
 }
 
 function closeKeyModal() {
   document.getElementById('key-modal')?.classList.remove('active');
+  // Reset to enter panel when closing
+  setTimeout(showEnterPanel, 300);
+}
+
+function showEnterPanel() {
+  document.getElementById('key-panel-enter').style.display = '';
+  document.getElementById('key-panel-resend').style.display = 'none';
+  document.getElementById('key-panel-sent').style.display = 'none';
+  document.getElementById('key-error')?.classList.remove('visible');
+  document.getElementById('key-input')?.classList.remove('error');
+}
+
+function showResendPanel() {
+  document.getElementById('key-panel-enter').style.display = 'none';
+  document.getElementById('key-panel-resend').style.display = '';
+  document.getElementById('key-panel-sent').style.display = 'none';
+  setTimeout(() => document.getElementById('resend-email-input')?.focus(), 100);
+}
+
+async function resendKey() {
+  const input = document.getElementById('resend-email-input');
+  const btn   = document.getElementById('resend-btn');
+  const err   = document.getElementById('resend-error');
+  const email = (input?.value || '').trim();
+
+  if (!email || !email.includes('@')) {
+    err.textContent = 'Please enter a valid email address.';
+    err.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  err.style.display = 'none';
+
+  try {
+    const res = await fetch('/api/resend-key', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email})
+    });
+    // Always show success — don't reveal if email exists
+    document.getElementById('key-panel-resend').style.display = 'none';
+    document.getElementById('key-panel-sent').style.display = '';
+  } catch(e) {
+    err.textContent = 'Something went wrong. Please try again.';
+    err.style.display = 'block';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Send my key';
 }
 
 async function validateKey() {
@@ -2665,16 +2721,49 @@ document.addEventListener('keydown', e => {
 <div id="key-modal">
   <div class="key-box">
     <button class="pw-close" onclick="closeKeyModal()">✕</button>
-    <div class="key-title">Enter license key</div>
-    <div class="key-desc">Your key looks like: SCAYLR-XXXX-XXXX-XXXX-XXXX</div>
-    <input type="text" id="key-input" placeholder="SCAYLR-XXXX-XXXX-XXXX-XXXX"
-      oninput="this.value=this.value.toUpperCase()"
-      onkeydown="if(event.key==='Enter') validateKey()"/>
-    <div id="key-error">Invalid key — please check and try again.</div>
-    <button class="key-btn-validate" id="key-validate-btn" onclick="validateKey()">
-      Activate Pro
-    </button>
-    <button class="key-btn-cancel" onclick="closeKeyModal()">Cancel</button>
+
+    <!-- Default: enter key -->
+    <div id="key-panel-enter">
+      <div class="key-title">Enter license key</div>
+      <div class="key-desc">Your key was emailed to you after payment. It looks like: SCAYLR-XXXX-XXXX-XXXX-XXXX</div>
+      <input type="text" id="key-input" placeholder="SCAYLR-XXXX-XXXX-XXXX-XXXX"
+        oninput="this.value=this.value.toUpperCase()"
+        onkeydown="if(event.key==='Enter') validateKey()"/>
+      <div id="key-error">Invalid key — please check and try again.</div>
+      <button class="key-btn-validate" id="key-validate-btn" onclick="validateKey()">
+        Activate Pro
+      </button>
+      <button class="key-btn-cancel" onclick="showResendPanel()">
+        Didn't receive the email?
+      </button>
+    </div>
+
+    <!-- Resend panel -->
+    <div id="key-panel-resend" style="display:none">
+      <div class="key-title">Resend your key</div>
+      <div class="key-desc">Enter the email address you used when subscribing and we'll resend your key.</div>
+      <input type="email" id="resend-email-input" placeholder="your@email.com"
+        onkeydown="if(event.key==='Enter') resendKey()"/>
+      <div id="resend-error" class="key-error-msg" style="display:none;color:#ef4444;font-size:12px;font-family:var(--font-mono);"></div>
+      <button class="key-btn-validate" id="resend-btn" onclick="resendKey()">
+        Send my key
+      </button>
+      <button class="key-btn-cancel" onclick="showEnterPanel()">
+        ← Back
+      </button>
+    </div>
+
+    <!-- Success panel -->
+    <div id="key-panel-sent" style="display:none">
+      <div class="key-title">Email sent ✓</div>
+      <div class="key-desc" style="text-align:center;padding:8px 0;">
+        If that email address has an active subscription, your key is on its way. Check your spam folder if it doesn't arrive within a minute.
+      </div>
+      <button class="key-btn-validate" onclick="showEnterPanel()">
+        Enter my key
+      </button>
+    </div>
+
   </div>
 </div>
 
