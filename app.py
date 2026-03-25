@@ -363,6 +363,37 @@ def eany(e):
 def health():
     return "ok", 200
 
+@app.route("/debug-key/<key>")
+def debug_key(key):
+    import hmac as _h, hashlib as _hs
+    secret = _KEY_SECRET
+    parts  = key.upper().strip().split("-")
+    if len(parts) != 5:
+        return f"BAD FORMAT: {parts}"
+    uid          = parts[1]
+    sig_provided = parts[2] + parts[3] + parts[4]
+    sig_expected = _h.new(secret.encode(), uid.encode(), _hs.sha256).hexdigest()[:12].upper()
+    hmac_ok      = _h.compare_digest(sig_provided, sig_expected)
+    try:
+        with _db() as conn:
+            cur = conn.cursor()
+            cur.execute(_q("SELECT status, expires_at FROM pro_keys WHERE key = %s"),
+                        (key.upper().strip(),))
+            row = _fetchone(cur)
+        db_row = dict(row) if row else None
+    except Exception as e:
+        db_row = f"DB ERROR: {e}"
+    return {
+        "key":          key.upper(),
+        "secret_first8": secret[:8] + "...",
+        "uid":          uid,
+        "sig_provided": sig_provided,
+        "sig_expected": sig_expected,
+        "hmac_ok":      hmac_ok,
+        "db_row":       db_row,
+        "overall_valid": _validate_key(key),
+    }
+
 @app.route("/")
 def landing():
     return send_from_directory(STATIC_DIR, "landing.html")
