@@ -231,7 +231,9 @@ def _send_key_email(to_email: str, key: str, is_renewal: bool = False) -> bool:
 
 @app.route("/stripe-webhook", methods=["POST"])
 def stripe_webhook():
-    payload    = request.get_data()
+    if request.content_length and request.content_length > 512 * 1024:
+        return jsonify({"error": "Payload too large"}), 413
+    payload    = request.get_data(limit=512 * 1024)
     sig_header = request.headers.get("Stripe-Signature", "")
 
     if _STRIPE_WEBHOOK_SECRET:
@@ -248,8 +250,9 @@ def stripe_webhook():
             return jsonify({"error": "Bad JSON"}), 400
 
     event_type = event.get("type", "")
+    event_id   = event.get("id", "")
     obj        = event.get("data", {}).get("object", {})
-    print(f"[webhook] {event_type}", flush=True)
+    print(f"[webhook] {event_type} ({event_id[:12]})", flush=True)
 
     if event_type == "invoice.paid":
         sub_id      = obj.get("subscription")
@@ -390,6 +393,14 @@ def _cache_set(session_id, key, value):
         _cache[sid] = {k: v for k, v in _cache[sid].items() if now - v["ts"] < CACHE_TTL}
         if not _cache[sid]:
             del _cache[sid]
+
+@app.after_request
+def add_cors(resp):
+    origin = request.headers.get("Origin", "")
+    allowed = os.environ.get("APP_URL", "https://scaylr.io")
+    if origin in (allowed, allowed.replace("https://", "https://www.")):
+        resp.headers["Access-Control-Allow-Origin"] = origin
+    return resp
 
 @app.errorhandler(Exception)
 def eany(e):
@@ -570,8 +581,10 @@ def api_download(job_id):
     p = OUTPUT_DIR / f"{job_id}.svg"
     if not p.exists():
         return jsonify({"error": "Not found"}), 404
-    return send_file(p, mimetype="image/svg+xml", as_attachment=True,
+    resp = send_file(p, mimetype="image/svg+xml", as_attachment=True,
                      download_name=f"vector_{job_id}.svg")
+    resp.headers["Cache-Control"] = "private, max-age=3600"
+    return resp
 
 @app.route("/api/download-pdf/<job_id>")
 def api_download_pdf(job_id):
