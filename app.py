@@ -260,15 +260,17 @@ def stripe_webhook():
             return jsonify({"ok": True})
 
         with _db() as conn:
-            existing = conn.execute(
-                "SELECT key FROM pro_keys WHERE stripe_subscription_id=?", (sub_id,)
-            ).fetchone()
+            cur = _cursor(conn)
+            cur.execute(
+                _q("SELECT key FROM pro_keys WHERE stripe_subscription_id=%s"), (sub_id,)
+            )
+            existing = _fetchone(cur)
 
             if existing:
                 # Renewal — extend expiry, same key unchanged
                 key = existing["key"]
-                conn.execute(
-                    "UPDATE pro_keys SET status='active', expires_at=?, renewed_at=? WHERE key=?",
+                cur.execute(
+                    _q("UPDATE pro_keys SET status='active', expires_at=%s, renewed_at=%s WHERE key=%s"),
                     (_expires_iso(), _now_iso(), key)
                 )
                 conn.commit()
@@ -277,11 +279,8 @@ def stripe_webhook():
             else:
                 # New subscription
                 key = _generate_key()
-                conn.execute(
-                    """INSERT INTO pro_keys
-                       (key, email, stripe_customer_id, stripe_subscription_id,
-                        status, created_at, expires_at)
-                       VALUES (?, ?, ?, ?, 'active', ?, ?)""",
+                cur.execute(
+                    _q("INSERT INTO pro_keys (key,email,stripe_customer_id,stripe_subscription_id,status,created_at,expires_at) VALUES (%s,%s,%s,%s,'active',%s,%s)"),
                     (key, email.lower(), customer_id, sub_id, _now_iso(), _expires_iso())
                 )
                 conn.commit()
