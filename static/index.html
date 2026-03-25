@@ -1183,38 +1183,64 @@ body { padding-top: 52px; }
       <div class="sec-label" style="margin-top:8px;">Pre-processing</div>
 
       <div class="field">
+        <div class="field-row"><label>Guided smooth</label><span class="field-val" id="v-gf">4</span></div>
+        <div class="field-desc">Edge-preserving filter. Smooths noise inside colour regions while keeping boundaries sharp. Higher = more smoothing. 0 = off.</div>
+        <input type="range" id="guided-filter-radius" min="0" max="12" step="1" value="4" oninput="$('v-gf').textContent=this.value;markSettingsChanged()"/>
+      </div>
+
+      <div class="field">
         <div class="field-row"><label>Blur</label><span class="field-val" id="v-br">0.8</span></div>
-        <div class="field-desc">Gaussian blur before tracing. Smooths noise. Higher = more smoothing.</div>
+        <div class="field-desc">Gaussian blur fallback when guided smooth is off. 0 = off.</div>
         <input type="range" id="blur-radius" min="0" max="3.0" step="0.1" value="0.8" oninput="$('v-br').textContent=(+this.value).toFixed(1);markSettingsChanged()"/>
       </div>
 
       <div class="field">
         <div class="field-row"><label>Median filter</label><span class="field-val" id="v-ms">3</span></div>
-        <div class="field-desc">Removes speckle noise while keeping hard edges sharp. 1 = off, 3 = mild, 5 = strong.</div>
+        <div class="field-desc">Removes speckle noise while keeping hard edges. 1 = off, 3 = mild, 5 = strong.</div>
         <input type="range" id="median-size" min="1" max="7" step="2" value="3" oninput="$('v-ms').textContent=this.value;markSettingsChanged()"/>
       </div>
 
       <div class="field">
         <div class="field-row"><label>Stroke repair</label><span class="field-val" id="v-mc">3</span></div>
-        <div class="field-desc">Closes small gaps in lineart strokes before tracing. 1 = off. Only affects Line Art mode.</div>
+        <div class="field-desc">Closes small gaps in lineart strokes. 1 = off. Only affects Line Art mode.</div>
         <input type="range" id="morph-close-size" min="1" max="7" step="2" value="3" oninput="$('v-mc').textContent=this.value;markSettingsChanged()"/>
       </div>
 
       <div class="field">
         <div class="field-row"><label>Edge sharpness</label><span class="field-val" id="v-up">90</span></div>
-        <div class="field-desc">Unsharp mask strength. Recovers edge crispness after blurring. 0 = off.</div>
+        <div class="field-desc">Unsharp mask strength. Recovers edge crispness after smoothing. 0 = off.</div>
         <input type="range" id="unsharp-percent" min="0" max="200" step="10" value="90" oninput="$('v-up').textContent=this.value;markSettingsChanged()"/>
       </div>
 
       <div class="field">
         <div class="field-row"><label>Sharpening radius</label><span class="field-val" id="v-ur">0.5</span></div>
-        <div class="field-desc">How wide the sharpening halo is. Higher = broader edge enhancement.</div>
+        <div class="field-desc">Width of the sharpening halo. Higher = broader edge enhancement.</div>
         <input type="range" id="unsharp-radius" min="0" max="3.0" step="0.1" value="0.5" oninput="$('v-ur').textContent=(+this.value).toFixed(1);markSettingsChanged()"/>
+      </div>
+
+      <div class="sec-label" style="margin-top:16px;">Colour simplification</div>
+
+      <div class="field">
+        <div class="field-row"><label>Max colours</label><span class="field-val" id="v-mc2">32</span></div>
+        <div class="field-desc">Hard palette cap before tracing. Lower = fewer colour layers, faster, bolder. 0 = use posterize instead.</div>
+        <input type="range" id="max-colors" min="0" max="128" step="4" value="32" oninput="$('v-mc2').textContent=this.value;markSettingsChanged()"/>
+      </div>
+
+      <div class="field">
+        <div class="field-row"><label>Colour merge</label><span class="field-val" id="v-cd">12</span></div>
+        <div class="field-desc">Merge near-identical colours before tracing. Higher = more aggressive merging, fewer paths. 0 = off.</div>
+        <input type="range" id="color-dedup-thresh" min="0" max="40" step="2" value="12" oninput="$('v-cd').textContent=this.value;markSettingsChanged()"/>
+      </div>
+
+      <div class="field">
+        <div class="field-row"><label>Boundary smooth</label><span class="field-val" id="v-pqs">0.8</span></div>
+        <div class="field-desc">Blur applied after colour reduction. Softens jagged colour boundaries so vtracer fits smoother curves. Key for smooth lines.</div>
+        <input type="range" id="post-quant-smooth" min="0" max="3.0" step="0.1" value="0.8" oninput="$('v-pqs').textContent=(+this.value).toFixed(1);markSettingsChanged()"/>
       </div>
 
       <div class="field">
         <div class="field-row"><label>Posterize</label><span class="field-val" id="v-pb">6</span></div>
-        <div class="field-desc">Colour banding before tracing. Lower = flatter, bolder shapes. Higher = more tonal gradients.</div>
+        <div class="field-desc">Colour banding (used when Max colours = 0). Lower = flatter shapes. Higher = more tonal gradients.</div>
         <input type="range" id="posterize-bits" min="2" max="8" value="6" oninput="$('v-pb').textContent=this.value;markSettingsChanged()"/>
       </div>
 
@@ -1534,33 +1560,39 @@ function toggleAdvanced() {
 
 // ── Presets ────────────────────────────────────────────────
 // ── Presets ────────────────────────────────────────────────
-// Each preset sets ALL fine-tune sliders.
-// Fields: br=blur, ms=median, mc=morph-close, up=unsharp%, ur=unsharp-radius,
-//         pb=posterize, cp=color-precision, ld=layer-diff, fs=filter-speckle,
-//         ct=corner-threshold, st=splice-threshold, se=simplify-epsilon, mode
+// Fields:
+//   gf=guided-filter-radius, br=blur, ms=median, mc=morph-close,
+//   up=unsharp%, ur=unsharp-radius, pb=posterize,
+//   mc2=max-colors, cd=color-dedup-thresh, pqs=post-quant-smooth,
+//   cp=color-precision, ld=layer-diff, fs=filter-speckle,
+//   ct=corner-threshold, st=splice-threshold, se=simplify-epsilon, mode
 const PRESETS = {
   lineart: {
-    // B&W line art — strong noise cleanup, gap-closing, smooth splines
-    br:0.5,  ms:3, mc:3,  up:80,  ur:0.5, pb:6,
-    cp:4,    ld:1, fs:4,  ct:65,  st:80,  se:0.4,
+    // B&W line art — guided smooth, strong gap-close, smooth splines
+    gf:4,  br:0.5, ms:3, mc:3,  up:80,  ur:0.5, pb:6,
+    mc2:0, cd:0,   pqs:0,
+    cp:4,  ld:1,   fs:4, ct:65, st:80,  se:0.4,
     mode:'lineart',
   },
   flat: {
-    // Flat art / logos — aggressive simplification, bold shapes, fast
-    br:1.2,  ms:3, mc:1,  up:60,  ur:0.5, pb:3,
-    cp:4,    ld:16, fs:12, ct:55,  st:80,  se:0.5,
+    // Flat art / logos — hard palette, aggressive dedup, bold shapes
+    gf:4,  br:0.5, ms:3, mc:1,  up:60,  ur:0.5, pb:3,
+    mc2:16, cd:18, pqs:1.2,
+    cp:4,  ld:16,  fs:12, ct:60, st:85, se:0.5,
     mode:'color',
   },
   illustration: {
-    // Illustration — balanced detail and smooth curves
-    br:0.8,  ms:3, mc:1,  up:90,  ur:0.5, pb:6,
-    cp:6,    ld:4,  fs:6,  ct:48,  st:70,  se:0.3,
+    // Illustration — balanced quality and smooth curves
+    gf:4,  br:0.5, ms:3, mc:1,  up:90,  ur:0.5, pb:6,
+    mc2:32, cd:12, pqs:0.8,
+    cp:6,  ld:4,   fs:6, ct:48, st:70,  se:0.3,
     mode:'color',
   },
   detailed: {
-    // High detail — maximum fidelity, slower
-    br:0.4,  ms:1, mc:1,  up:120, ur:0.8, pb:8,
-    cp:8,    ld:1,  fs:2,  ct:30,  st:55,  se:0.1,
+    // High detail — maximum fidelity, more colours, slower
+    gf:3,  br:0.3, ms:1, mc:1,  up:120, ur:0.8, pb:8,
+    mc2:64, cd:8,  pqs:0.5,
+    cp:8,  ld:1,   fs:2, ct:30, st:55,  se:0.1,
     mode:'color',
   },
 };
@@ -1586,18 +1618,22 @@ function applyPreset(name) {
     const lb = $(lbl); if (lb) lb.textContent = dec ? (+val).toFixed(dec) : val;
   };
 
-  setR('blur-radius',       'v-br', p.br,  1);
-  setR('median-size',       'v-ms', p.ms);
-  setR('morph-close-size',  'v-mc', p.mc);
-  setR('unsharp-percent',   'v-up', p.up);
-  setR('unsharp-radius',    'v-ur', p.ur,  1);
-  setR('posterize-bits',    'v-pb', p.pb);
-  setR('color-precision',   'v-cp', p.cp);
-  setR('layer-difference',  'v-ld', p.ld);
-  setR('filter-speckle',    'v-fs', p.fs);
-  setR('corner-threshold',  'v-ct', p.ct);
-  setR('splice-threshold',  'v-st', p.st);
-  setR('simplify-epsilon',  'v-se', p.se,  1);
+  setR('guided-filter-radius', 'v-gf',  p.gf);
+  setR('blur-radius',          'v-br',  p.br,  1);
+  setR('median-size',          'v-ms',  p.ms);
+  setR('morph-close-size',     'v-mc',  p.mc);
+  setR('unsharp-percent',      'v-up',  p.up);
+  setR('unsharp-radius',       'v-ur',  p.ur,  1);
+  setR('max-colors',           'v-mc2', p.mc2);
+  setR('color-dedup-thresh',   'v-cd',  p.cd);
+  setR('post-quant-smooth',    'v-pqs', p.pqs, 1);
+  setR('posterize-bits',       'v-pb',  p.pb);
+  setR('color-precision',      'v-cp',  p.cp);
+  setR('layer-difference',     'v-ld',  p.ld);
+  setR('filter-speckle',       'v-fs',  p.fs);
+  setR('corner-threshold',     'v-ct',  p.ct);
+  setR('splice-threshold',     'v-st',  p.st);
+  setR('simplify-epsilon',     'v-se',  p.se,  1);
 
   markSettingsChanged();
 }
@@ -1607,11 +1643,15 @@ let settingsSnapshot = null;
 let hasResult = false;
 function getSettingsSnapshot() {
   return JSON.stringify({
+    gf:  $('guided-filter-radius').value,
     br:  $('blur-radius').value,
     ms:  $('median-size').value,
     mc:  $('morph-close-size').value,
     up:  $('unsharp-percent').value,
     ur:  $('unsharp-radius').value,
+    mc2: $('max-colors').value,
+    cd:  $('color-dedup-thresh').value,
+    pqs: $('post-quant-smooth').value,
     pb:  $('posterize-bits').value,
     cp:  $('color-precision').value,
     ld:  $('layer-difference').value,
@@ -2019,18 +2059,22 @@ function load(f) {
     document.querySelectorAll('.mobile-preset-btn').forEach(b=>b.classList.remove('active'));
     // Reset sliders
     const defs = {
-      'blur-radius':0.8,      'v-br':'0.8',
-      'median-size':3,        'v-ms':'3',
-      'morph-close-size':3,   'v-mc':'3',
-      'unsharp-percent':90,   'v-up':'90',
-      'unsharp-radius':0.5,   'v-ur':'0.5',
-      'posterize-bits':6,     'v-pb':'6',
-      'color-precision':6,    'v-cp':'6',
-      'layer-difference':4,   'v-ld':'4',
-      'filter-speckle':6,     'v-fs':'6',
-      'corner-threshold':48,  'v-ct':'48',
-      'splice-threshold':70,  'v-st':'70',
-      'simplify-epsilon':0.3, 'v-se':'0.3',
+      'guided-filter-radius':4,  'v-gf':'4',
+      'blur-radius':0.5,         'v-br':'0.5',
+      'median-size':3,           'v-ms':'3',
+      'morph-close-size':3,      'v-mc':'3',
+      'unsharp-percent':90,      'v-up':'90',
+      'unsharp-radius':0.5,      'v-ur':'0.5',
+      'max-colors':32,           'v-mc2':'32',
+      'color-dedup-thresh':12,   'v-cd':'12',
+      'post-quant-smooth':0.8,   'v-pqs':'0.8',
+      'posterize-bits':6,        'v-pb':'6',
+      'color-precision':6,       'v-cp':'6',
+      'layer-difference':4,      'v-ld':'4',
+      'filter-speckle':6,        'v-fs':'6',
+      'corner-threshold':48,     'v-ct':'48',
+      'splice-threshold':70,     'v-st':'70',
+      'simplify-epsilon':0.3,    'v-se':'0.3',
     };
   // Reset checkboxes to defaults
     Object.entries(defs).forEach(([id,val])=>{
@@ -2285,20 +2329,24 @@ async function runVectorize(){
   setTimeout(()=>advanceLB(2),2300);
 
   const fd=new FormData();
-  fd.append('file',             currentFile);
-  fd.append('engine_mode',      engineMode);
-  fd.append('blur_radius',      $('blur-radius').value);
-  fd.append('median_size',      $('median-size').value);
-  fd.append('morph_close_size', $('morph-close-size').value);
-  fd.append('unsharp_percent',  $('unsharp-percent').value);
-  fd.append('unsharp_radius',   $('unsharp-radius').value);
-  fd.append('posterize_bits',   $('posterize-bits').value);
-  fd.append('color_precision',  $('color-precision').value);
-  fd.append('layer_difference', $('layer-difference').value);
-  fd.append('filter_speckle',   $('filter-speckle').value);
-  fd.append('corner_threshold', $('corner-threshold').value);
-  fd.append('splice_threshold', $('splice-threshold').value);
-  fd.append('simplify_epsilon', $('simplify-epsilon').value);
+  fd.append('file',                currentFile);
+  fd.append('engine_mode',         engineMode);
+  fd.append('guided_filter_radius',$('guided-filter-radius').value);
+  fd.append('blur_radius',         $('blur-radius').value);
+  fd.append('median_size',         $('median-size').value);
+  fd.append('morph_close_size',    $('morph-close-size').value);
+  fd.append('unsharp_percent',     $('unsharp-percent').value);
+  fd.append('unsharp_radius',      $('unsharp-radius').value);
+  fd.append('max_colors',          $('max-colors').value);
+  fd.append('color_dedup_thresh',  $('color-dedup-thresh').value);
+  fd.append('post_quant_smooth',   $('post-quant-smooth').value);
+  fd.append('posterize_bits',      $('posterize-bits').value);
+  fd.append('color_precision',     $('color-precision').value);
+  fd.append('layer_difference',    $('layer-difference').value);
+  fd.append('filter_speckle',      $('filter-speckle').value);
+  fd.append('corner_threshold',    $('corner-threshold').value);
+  fd.append('splice_threshold',    $('splice-threshold').value);
+  fd.append('simplify_epsilon',    $('simplify-epsilon').value);
 
   try{
     currentAbortController = new AbortController();
