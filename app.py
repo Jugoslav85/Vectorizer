@@ -351,7 +351,7 @@ def api_sample_image(filename):
     return send_file(p)
 
 @app.route("/api/vectorize", methods=["POST"])
-@limiter.limit("30 per hour;5 per minute")
+@limiter.limit("20 per hour;3 per minute")
 def api_vectorize():
     if "file" not in request.files:
         return jsonify({"error": "No file"}), 400

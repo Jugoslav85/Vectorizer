@@ -1130,11 +1130,8 @@ body { padding-top: 52px; }
       </div>
     </div>
 
-    <button class="btn-advanced" id="btn-advanced" onclick="pwGuard('finetune', toggleAdvanced)">
-      ▾ Fine-tune settings <span class="pw-lock" id="finetune-lock-icon"></span>
-    </button>
-    <button id="finetune-lock-btn" onclick="showPaywall('finetune')">
-      🔒 Fine-tune is a Pro feature — Upgrade
+    <button class="btn-advanced" id="btn-advanced" onclick="toggleAdvanced()">
+      ▾ Fine-tune settings
     </button>
     <div class="advanced-panel" id="advanced-panel">
       <div class="advanced-hint">
@@ -1193,6 +1190,7 @@ body { padding-top: 52px; }
         <div class="status-dot" id="status-dot"></div>
         <span id="status">Upload an image to get started</span>
       </div>
+      <div id="usage-badge" style="display:none;font-size:11px;font-family:var(--font-mono);margin-top:4px;color:var(--dim);"></div>
       <button class="btn-main" id="btn-run" disabled onclick="runVectorize()">
         Convert →
       </button>
@@ -1205,11 +1203,11 @@ body { padding-top: 52px; }
         <div class="sec-label" style="margin-top:16px;">Export</div>
         <div class="export-grid">
           <button class="btn-export" onclick="exportAs('svg')">SVG</button>
-          <button class="btn-export" id="btn-pdf" onclick="exportAs('pdf')">PDF <span class="pw-lock" id="pdf-lock-icon"></span></button>
-          <button class="btn-export" onclick="exportAs('png')">PNG</button>
-          <button class="btn-export" onclick="exportAs('jpg')">JPG</button>
+          <button class="btn-export" id="btn-pdf" onclick="exportAs('pdf')">PDF</button>
+          <button class="btn-export" id="btn-png" onclick="exportAs('png')">PNG <span class="pw-lock" id="png-lock-icon"></span></button>
+          <button class="btn-export" id="btn-jpg" onclick="exportAs('jpg')">JPG <span class="pw-lock" id="jpg-lock-icon"></span></button>
         </div>
-        <button class="btn-copy-svg" id="btn-copy-svg" onclick="copySvgCode()">⎘ Copy SVG code</button>
+        <button class="btn-copy-svg" id="btn-copy-svg" onclick="exportAs('copy-svg')">⎘ Copy SVG code <span class="pw-lock" id="copy-lock-icon"></span></button>
         <button class="btn-new" onclick="resetToUpload()">+ Convert a new image</button>
       </div>
 </aside>
@@ -1273,9 +1271,9 @@ body { padding-top: 52px; }
       <button class="m-dl-primary" onclick="exportAs('svg')">↓ Download SVG</button>
       <div class="m-dl-grid">
         <button class="m-dl-btn" onclick="exportAs('pdf')">PDF</button>
-        <button class="m-dl-btn" onclick="exportAs('png')">PNG</button>
-        <button class="m-dl-btn" onclick="exportAs('jpg')">JPG</button>
-        <button class="m-dl-btn" onclick="copySvgCode()">Copy SVG</button>
+        <button class="m-dl-btn" onclick="exportAs('png')">PNG <span class="pw-lock" id="m-png-lock"></span></button>
+        <button class="m-dl-btn" onclick="exportAs('jpg')">JPG <span class="pw-lock" id="m-jpg-lock"></span></button>
+        <button class="m-dl-btn" onclick="exportAs('copy-svg')">Copy SVG <span class="pw-lock" id="m-copy-lock"></span></button>
       </div>
     </div>
   </div>
@@ -1550,6 +1548,7 @@ function mEnableConvert(yes) {
 // ── Convert ───────────────────────────────────────────────────
 function mConvert() {
   if (!_isMob()) return;
+  if (!_checkDailyLimit()) return;
   // Show processing screen
   document.getElementById('m-processing').classList.add('active');
   // Sub-messages cycling
@@ -1746,6 +1745,8 @@ window.addEventListener('DOMContentLoaded', () => {
   } else {
     applyPreset('lineart');  // sets engineMode, _currentCt, and all slider values
   }
+  // Show usage badge after pwInit resolves (pwInit is async)
+  setTimeout(_updateUsageBadge, 500);
 });
 
 // ── Pan & Zoom ─────────────────────────────────────────────
@@ -2089,6 +2090,7 @@ function cancelConvert() {
 // ── Main vectorize ─────────────────────────────────────────
 async function runVectorize(){
   if(!currentFile)return;
+  if(!_checkDailyLimit())return;  // blocks if free tier limit reached
   $('export-section').style.display='none';
   $('btn-reprocess').style.display='none';
   $('inner-svg').innerHTML='';
@@ -2196,6 +2198,8 @@ async function runVectorize(){
     // Setup reprocess button
     hasResult=true;
     saveSettingsSnapshot();
+    _incrementUsage();       // count only successful conversions
+    _updateUsageBadge();
     $('btn-run').style.display='none';
     $('btn-reprocess').style.display='block';
     $('btn-reprocess').disabled=true;
@@ -2224,7 +2228,7 @@ function svgToCanvas(svgText,tw,th){
     img.onerror=reject; img.src=url;
   });
 }
-async function exportAs(fmt){
+async function _exportAsCore(fmt){
   if(!currentSvgText)return;
   if(fmt==='svg'){const a=document.createElement('a');a.href=currentSvgUrl;a.download='vector.svg';a.click();return;}
   if(fmt==='pdf'){
@@ -2352,6 +2356,78 @@ window.addEventListener('DOMContentLoaded', loadSampleFromUrl);
 
 
 // ═══════════════════════════════════════════════════════════════════
+// ── Daily free limit ─────────────────────────────────────────────────────────
+// 5 conversions/day for free tier, resets at midnight local time
+// Pro users bypass entirely
+
+const FREE_DAILY_LIMIT = 5;
+const USAGE_KEY        = 'scaylr-usage';
+
+function _getToday() {
+  const d = new Date();
+  return d.getFullYear() + '-' +
+    String(d.getMonth()+1).padStart(2,'0') + '-' +
+    String(d.getDate()).padStart(2,'0');
+}
+
+function _getUsage() {
+  try {
+    const raw = localStorage.getItem(USAGE_KEY);
+    if (!raw) return {date: _getToday(), count: 0};
+    const data = JSON.parse(raw);
+    if (data.date !== _getToday()) return {date: _getToday(), count: 0};
+    return data;
+  } catch(e) {
+    return {date: _getToday(), count: 0};
+  }
+}
+
+function _incrementUsage() {
+  const usage = _getUsage();
+  usage.count += 1;
+  localStorage.setItem(USAGE_KEY, JSON.stringify(usage));
+  return usage.count;
+}
+
+function _getRemaining() {
+  if (isPro) return Infinity;
+  return Math.max(0, FREE_DAILY_LIMIT - _getUsage().count);
+}
+
+function _checkDailyLimit() {
+  if (isPro) return true;
+  const remaining = _getRemaining();
+  if (remaining <= 0) {
+    _showLimitModal();
+    return false;
+  }
+  return true;
+}
+
+function _updateUsageBadge() {
+  if (isPro) return;
+  const remaining = _getRemaining();
+  const badge = document.getElementById('usage-badge');
+  if (!badge) return;
+  if (remaining <= 0) {
+    badge.textContent = 'Limit reached — resets at midnight';
+    badge.style.color = '#ef4444';
+  } else if (remaining < FREE_DAILY_LIMIT) {
+    badge.textContent = remaining + ' free conversion' + (remaining === 1 ? '' : 's') + ' left today';
+    badge.style.color = remaining <= 2 ? '#ef4444' : 'var(--dim)';
+  } else {
+    badge.textContent = FREE_DAILY_LIMIT + ' free conversions per day';
+    badge.style.color = 'var(--dim)';
+  }
+  badge.style.display = 'block';
+}
+
+function _showLimitModal() {
+  const el = document.getElementById('pw-desc');
+  if (el) el.textContent = "You’ve used all " + FREE_DAILY_LIMIT + " free conversions for today. Upgrade to Pro for unlimited access, or come back tomorrow.";
+  document.getElementById('pw-modal').classList.add('active');
+}
+
 // PAYWALL — Pro gating
 // Free: all conversions, no PDF, no fine-tune
 // Pro: everything, unlocked by license key stored in localStorage
@@ -2399,20 +2475,22 @@ function pwActivate(key, showToast = true) {
   // Show pro badge
   document.getElementById('pro-badge')?.classList.add('visible');
 
-  // Remove lock icons
-  document.getElementById('finetune-lock-icon').style.display = 'none';
-  document.getElementById('pdf-lock-icon').style.display = 'none';
-
-  // Unlock fine-tune — restore normal click handler and hide lock button
-  const btnAdv = document.getElementById('btn-advanced');
-  btnAdv.onclick = () => toggleAdvanced();
-  document.getElementById('finetune-lock-btn')?.classList.remove('visible');
+  // Hide lock icons on PNG, JPG, Copy SVG
+  ['png-lock-icon','jpg-lock-icon','copy-lock-icon',
+   'm-png-lock','m-jpg-lock','m-copy-lock'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
 
   // Close any open modals
   closePaywall(); closeKeyModal();
 
+  // Hide usage badge for Pro users
+  const badge = document.getElementById('usage-badge');
+  if (badge) badge.style.display = 'none';
+
   if (showToast) {
-    setStatus('🎉 Pro activated — all features unlocked!', 'ready');
+    setStatus('🎉 Pro activated — PNG, JPG and Copy SVG unlocked!', 'ready');
     setTimeout(() => setStatus('', ''), 4000);
   }
 }
@@ -2420,13 +2498,12 @@ function pwActivate(key, showToast = true) {
 // ── Apply free UI locks ────────────────────────────────────────────
 function pwApplyFreeUI() {
   isPro = false;
-  // Show lock icons
-  const fi = document.getElementById('finetune-lock-icon');
-  const pi = document.getElementById('pdf-lock-icon');
-  if (fi) fi.style.display = '';
-  if (pi) pi.style.display = '';
-  // Show lock button below fine-tune toggle
-  document.getElementById('finetune-lock-btn')?.classList.add('visible');
+  // Show lock icons on PNG, JPG, Copy SVG
+  ['png-lock-icon','jpg-lock-icon','copy-lock-icon',
+   'm-png-lock','m-jpg-lock','m-copy-lock'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = '';
+  });
 }
 
 // ── Guard: called before Pro features ─────────────────────────────
@@ -2441,8 +2518,9 @@ function pwGuard(feature, callback) {
 // ── Show paywall modal ─────────────────────────────────────────────
 function showPaywall(feature) {
   const descs = {
-    pdf:      'PDF export is a Pro feature. Upgrade to download vector PDFs ready for print.',
-    finetune: 'Fine-tune settings are a Pro feature. Adjust blur, posterize, sharpness and more.',
+    png:        'PNG export is a Pro feature. Upgrade to download high-resolution raster files.',
+    jpg:        'JPG export is a Pro feature. Upgrade to download high-resolution raster files.',
+    'copy-svg': 'Copying SVG code is a Pro feature. Upgrade to get the raw SVG markup.',
   };
   const el = document.getElementById('pw-desc');
   if (el) el.textContent = descs[feature] || 'Upgrade to Pro to unlock this feature.';
@@ -2498,13 +2576,13 @@ async function validateKey() {
 
 // ── Override exportAs to guard PDF ───────────────────────────────
 // Wrap the existing exportAs to intercept PDF calls
-const _origExportAs = exportAs;
 async function exportAs(fmt) {
-  if (fmt === 'pdf' && !isPro) {
-    showPaywall('pdf');
+  // PNG, JPG and Copy SVG are Pro-only
+  if ((fmt === 'png' || fmt === 'jpg' || fmt === 'copy-svg') && !isPro) {
+    showPaywall(fmt);
     return;
   }
-  return _origExportAs(fmt);
+  return _exportAsCore(fmt);
 }
 
 // ── Close modals on backdrop click ───────────────────────────────
@@ -2557,15 +2635,14 @@ document.addEventListener('keydown', e => {
     <button class="pw-close" onclick="closePaywall()">✕</button>
     <div class="pw-icon">⬡</div>
     <div class="pw-title">Upgrade to Pro</div>
-    <div class="pw-desc" id="pw-desc">Unlock all features with a Pro license.</div>
+    <div class="pw-desc" id="pw-desc">Upgrade to Pro to export PNG and JPG files and copy SVG code.</div>
     <ul class="pw-features">
-      <li>PDF vector export (print-ready)</li>
-      <li>Fine-tune settings for perfect results</li>
-      <li>Unlimited conversions</li>
-      <li>Priority processing</li>
-      <li>One-time license — no subscription</li>
+      <li>PNG &amp; JPG high-res raster export</li>
+      <li>Copy SVG code directly</li>
+      <li>Unlimited conversions per day</li>
+      <li>SVG &amp; PDF always free for everyone</li>
     </ul>
-    <div class="pw-price">$12 <span>/ month</span></div>
+    <div class="pw-price">$8.99 <span>/ month</span></div>
     <a class="pw-btn-buy" id="pw-btn-buy" href="https://buy.stripe.com/scaylr" target="_blank" rel="noopener">
       Get Pro →
     </a>
