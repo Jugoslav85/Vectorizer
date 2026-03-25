@@ -1,6 +1,5 @@
 flask
 flask-limiter
-flask-wtf
 pillow
 vtracer==0.6.12
 gunicorn

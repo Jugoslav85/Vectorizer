@@ -2229,6 +2229,7 @@ async function runVectorize(){
   }
   const dummy = null; // placeholder
     const data=await res.json();
+    if(res.status === 429) throw new Error('Server is busy — please wait a moment and try again.');
     if(!res.ok)throw new Error(data.error);
     currentJobId=data.job_id;
     currentSvgUrl=data.download;
@@ -2440,14 +2441,15 @@ async function loadSampleFromUrl() {
     const match = samples.find(s => s.file.replace(/\.[^.]+$/, '') === sampleId || s.name.toLowerCase().replace(/\s+/g,'-') === sampleId);
     if (!match) return;
 
-    // Apply preset
-    if (match.preset) applyPreset(match.preset);
-
     // Fetch the image file and load it
     const imgRes = await fetch(`/api/sample-image/${match.file}`);
     const blob = await imgRes.blob();
     const file = new File([blob], match.file, { type: blob.type });
     load(file);
+
+    // Apply preset AFTER load() — load() resets the preset to 'lineart'
+    // when overwriting an existing result, so we must re-apply here.
+    if (match.preset) applyPreset(match.preset);
 
     // Clean up URL
     window.history.replaceState({}, '', '/app');

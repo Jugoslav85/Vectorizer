@@ -10,19 +10,23 @@
 <style>
 :root{--bg:#f7f7f9;--surface:#fff;--border:#e2e2ea;--accent:#5b4fd4;--text:#111120;--muted:#55557a;--font-ui:'Syne',sans-serif;--font-mono:'DM Mono',monospace;}
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:var(--font-ui);background:var(--bg);color:var(--text);}
-nav{height:52px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 40px;gap:0;}
+body{font-family:var(--font-ui);background:var(--bg);color:var(--text);line-height:1.7;}
+nav{height:52px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 40px;}
 .nav-logo{font-weight:800;font-size:16px;color:var(--text);text-decoration:none;}
 .nav-logo span{color:var(--accent);}
 .nav-back{margin-left:24px;font-size:13px;font-family:var(--font-mono);color:var(--muted);text-decoration:none;}
 .nav-back:hover{color:var(--text);}
-.content{max-width:720px;margin:64px auto;padding:0 24px 80px;}
+.content{max-width:720px;margin:64px auto;padding:0 24px 100px;}
 h1{font-size:36px;font-weight:800;letter-spacing:-.03em;margin-bottom:12px;}
 .last-updated{font-size:13px;font-family:var(--font-mono);color:var(--muted);margin-bottom:48px;}
-.placeholder{background:var(--surface);border:1.5px solid var(--border);border-radius:16px;padding:48px;text-align:center;}
-.placeholder-icon{font-size:48px;margin-bottom:16px;opacity:.3;}
-.placeholder h2{font-size:20px;font-weight:800;margin-bottom:8px;}
-.placeholder p{font-size:15px;color:var(--muted);line-height:1.65;}
+h2{font-size:18px;font-weight:800;margin:40px 0 12px;color:var(--text);}
+p{font-size:15px;color:var(--muted);margin-bottom:16px;}
+ul{margin:0 0 16px 20px;}
+li{font-size:15px;color:var(--muted);margin-bottom:6px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+strong{color:var(--text);}
+hr{border:none;border-top:1px solid var(--border);margin:40px 0;}
 </style>
 </head>
 <body>
@@ -33,11 +37,65 @@ h1{font-size:36px;font-weight:800;letter-spacing:-.03em;margin-bottom:12px;}
 <div class="content">
   <h1>Privacy Policy</h1>
   <div class="last-updated">Last updated: March 2026</div>
-  <div class="placeholder">
-    <div class="placeholder-icon">📄</div>
-    <h2>Coming soon</h2>
-    <p>Our Privacy Policy is being drafted and will be published here before we launch paid plans.<br><br>For any questions in the meantime, contact us at <strong>hello@scaylr.io</strong></p>
-  </div>
+
+  <p>This Privacy Policy explains how Scaylr ("we", "us", or "our") collects, uses, and protects information when you use our image vectorisation service at scaylr.io (the "Service"). By using the Service you agree to the practices described here.</p>
+
+  <h2>1. Information We Collect</h2>
+  <p><strong>Account and payment information.</strong> When you subscribe to Scaylr Pro, your payment is processed by Stripe. We receive your email address from Stripe to deliver your license key. We do not store your credit card number, billing address, or any other payment details — these remain with Stripe.</p>
+  <p><strong>License key.</strong> We store your email address and a license key in our database, along with your Stripe subscription ID and key expiry date. This is necessary to provide and renew your Pro subscription.</p>
+  <p><strong>Images you upload.</strong> Images submitted for vectorisation are processed in memory and are not stored permanently. Converted SVG output files are temporarily stored on our servers (for up to one hour) solely to allow you to download the result, and are then automatically deleted.</p>
+  <p><strong>Usage data.</strong> We collect standard server logs including IP addresses, request timestamps, and HTTP status codes for security monitoring and debugging. We do not use third-party analytics trackers.</p>
+  <p><strong>Local storage.</strong> Your browser stores your Pro license key and daily usage count in <code>localStorage</code> to provide a seamless experience across sessions. This data never leaves your device except when your key is validated against our server.</p>
+
+  <h2>2. How We Use Your Information</h2>
+  <ul>
+    <li>To deliver your license key by email after purchase</li>
+    <li>To validate your Pro subscription status when you use the app</li>
+    <li>To send renewal confirmation emails when your subscription renews</li>
+    <li>To enforce fair usage limits for free tier users</li>
+    <li>To diagnose technical problems and improve the Service</li>
+  </ul>
+  <p>We do not sell, rent, or share your personal data with third parties for marketing purposes.</p>
+
+  <h2>3. Third-Party Services</h2>
+  <p><strong>Stripe.</strong> Payment processing is handled by Stripe, Inc. When you subscribe, you interact directly with Stripe's checkout. Stripe's <a href="https://stripe.com/privacy" target="_blank" rel="noopener">Privacy Policy</a> governs the data you provide during checkout.</p>
+  <p><strong>Resend.</strong> Transactional emails (license key delivery and renewal confirmations) are sent via Resend. Your email address is transmitted to Resend solely for this purpose.</p>
+  <p><strong>Railway.</strong> The Service is hosted on Railway's infrastructure. Server logs and database data are stored on Railway's platform. Railway's <a href="https://railway.app/legal/privacy" target="_blank" rel="noopener">Privacy Policy</a> applies to infrastructure-level data.</p>
+
+  <h2>4. Data Retention</h2>
+  <p>We retain your email address and license key record for as long as your subscription is active, and for up to 12 months after cancellation or expiry. You may request deletion at any time by emailing <a href="mailto:hello@scaylr.io">hello@scaylr.io</a>.</p>
+  <p>Uploaded images and generated SVG files are deleted from our servers automatically within one hour of your session ending.</p>
+
+  <h2>5. Your Rights (GDPR / UK GDPR)</h2>
+  <p>If you are located in the European Economic Area or United Kingdom, you have the following rights regarding your personal data:</p>
+  <ul>
+    <li><strong>Access</strong> — request a copy of the data we hold about you</li>
+    <li><strong>Rectification</strong> — ask us to correct inaccurate data</li>
+    <li><strong>Erasure</strong> — ask us to delete your data ("right to be forgotten")</li>
+    <li><strong>Portability</strong> — receive your data in a machine-readable format</li>
+    <li><strong>Objection</strong> — object to processing based on legitimate interests</li>
+  </ul>
+  <p>To exercise any of these rights, email us at <a href="mailto:hello@scaylr.io">hello@scaylr.io</a>. We will respond within 30 days.</p>
+
+  <h2>6. California Privacy Rights (CCPA)</h2>
+  <p>California residents have the right to know what personal information we collect, to request deletion, and to opt out of the sale of personal information. We do not sell personal information. To exercise your rights, contact us at <a href="mailto:hello@scaylr.io">hello@scaylr.io</a>.</p>
+
+  <h2>7. Cookies</h2>
+  <p>We use a single session cookie (<code>vsid</code>) to associate your conversion result with your browser session for caching purposes. This cookie contains no personal information and expires within 24 hours. We do not use advertising cookies or tracking pixels.</p>
+
+  <h2>8. Security</h2>
+  <p>License keys are cryptographically signed using HMAC-SHA256. All data is transmitted over HTTPS. We do not store plaintext passwords. Access to our database is restricted to production infrastructure only.</p>
+
+  <h2>9. Children's Privacy</h2>
+  <p>The Service is not directed to children under 13. We do not knowingly collect personal information from children. If you believe a child has provided us with personal information, please contact us and we will delete it promptly.</p>
+
+  <h2>10. Changes to This Policy</h2>
+  <p>We may update this Privacy Policy from time to time. We will post the revised policy on this page with an updated date. For material changes, we will notify active subscribers by email.</p>
+
+  <h2>11. Contact</h2>
+  <p>For any privacy questions or requests, contact us at:<br>
+  <a href="mailto:hello@scaylr.io">hello@scaylr.io</a></p>
+
 </div>
 </body>
 </html>

@@ -10,19 +10,22 @@
 <style>
 :root{--bg:#f7f7f9;--surface:#fff;--border:#e2e2ea;--accent:#5b4fd4;--text:#111120;--muted:#55557a;--font-ui:'Syne',sans-serif;--font-mono:'DM Mono',monospace;}
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:var(--font-ui);background:var(--bg);color:var(--text);}
-nav{height:52px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 40px;gap:0;}
+body{font-family:var(--font-ui);background:var(--bg);color:var(--text);line-height:1.7;}
+nav{height:52px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 40px;}
 .nav-logo{font-weight:800;font-size:16px;color:var(--text);text-decoration:none;}
 .nav-logo span{color:var(--accent);}
 .nav-back{margin-left:24px;font-size:13px;font-family:var(--font-mono);color:var(--muted);text-decoration:none;}
 .nav-back:hover{color:var(--text);}
-.content{max-width:720px;margin:64px auto;padding:0 24px 80px;}
+.content{max-width:720px;margin:64px auto;padding:0 24px 100px;}
 h1{font-size:36px;font-weight:800;letter-spacing:-.03em;margin-bottom:12px;}
 .last-updated{font-size:13px;font-family:var(--font-mono);color:var(--muted);margin-bottom:48px;}
-.placeholder{background:var(--surface);border:1.5px solid var(--border);border-radius:16px;padding:48px;text-align:center;}
-.placeholder-icon{font-size:48px;margin-bottom:16px;opacity:.3;}
-.placeholder h2{font-size:20px;font-weight:800;margin-bottom:8px;}
-.placeholder p{font-size:15px;color:var(--muted);line-height:1.65;}
+h2{font-size:18px;font-weight:800;margin:40px 0 12px;color:var(--text);}
+p{font-size:15px;color:var(--muted);margin-bottom:16px;}
+ul{margin:0 0 16px 20px;}
+li{font-size:15px;color:var(--muted);margin-bottom:6px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+strong{color:var(--text);}
 </style>
 </head>
 <body>
@@ -33,11 +36,60 @@ h1{font-size:36px;font-weight:800;letter-spacing:-.03em;margin-bottom:12px;}
 <div class="content">
   <h1>Terms of Service</h1>
   <div class="last-updated">Last updated: March 2026</div>
-  <div class="placeholder">
-    <div class="placeholder-icon">📄</div>
-    <h2>Coming soon</h2>
-    <p>Our Terms of Service is being drafted and will be published here before we launch paid plans.<br><br>For any questions in the meantime, contact us at <strong>hello@scaylr.io</strong></p>
-  </div>
+
+  <p>These Terms of Service ("Terms") govern your use of Scaylr ("we", "us", "our") and the image vectorisation service available at scaylr.io (the "Service"). By accessing or using the Service you agree to be bound by these Terms. If you do not agree, do not use the Service.</p>
+
+  <h2>1. The Service</h2>
+  <p>Scaylr converts raster images (PNG, JPG, WEBP, HEIC) into scalable vector graphics (SVG) using automated processing. The Service is provided on an "as is" and "as available" basis. We make no guarantee that the output will meet any particular quality standard or be suitable for any specific purpose.</p>
+
+  <h2>2. Free and Pro Tiers</h2>
+  <p><strong>Free tier.</strong> Free users may convert up to 5 images per day. SVG download is available to all users. PNG, JPG export, and Copy SVG code are restricted to Pro users.</p>
+  <p><strong>Pro tier.</strong> Pro access is granted via a license key delivered to your email address after subscribing. Your license key is personal and non-transferable. You must not share, sell, or distribute your key. Each active subscription is for a single user.</p>
+  <p><strong>Billing.</strong> Pro subscriptions are billed monthly at the rate shown at checkout. Billing is handled by Stripe. Your subscription renews automatically each month until cancelled. You may cancel at any time through Stripe; cancellation takes effect at the end of the current billing period.</p>
+  <p><strong>Refunds.</strong> We offer a full refund within 7 days of your first payment if you are not satisfied. Contact <a href="mailto:hello@scaylr.io">hello@scaylr.io</a> to request a refund. No refunds are issued for renewal charges after the 7-day window.</p>
+
+  <h2>3. Acceptable Use</h2>
+  <p>You agree not to use the Service to:</p>
+  <ul>
+    <li>Upload images you do not own or do not have the right to process</li>
+    <li>Upload images containing illegal content, including child sexual abuse material</li>
+    <li>Attempt to reverse-engineer, scrape, or automate the Service beyond normal use</li>
+    <li>Circumvent rate limits or access controls</li>
+    <li>Resell or sublicense access to the Service without our written consent</li>
+    <li>Use the Service in any way that could damage, disable, or impair our infrastructure</li>
+  </ul>
+  <p>We reserve the right to suspend or terminate access for any violation of these Terms without notice or refund.</p>
+
+  <h2>4. Your Content and Ownership</h2>
+  <p>You retain all ownership rights to the images you upload and the SVG output you download. By uploading an image you represent that you have the right to do so. We do not claim any ownership over your uploaded images or generated outputs.</p>
+  <p>Uploaded images are processed in memory and temporarily stored for up to one hour to allow download, then permanently deleted. We do not use your images to train models or for any purpose other than generating your requested output.</p>
+
+  <h2>5. Intellectual Property</h2>
+  <p>The Scaylr name, logo, website design, and underlying software are owned by us and protected by intellectual property law. You may not copy, reproduce, or create derivative works from any part of the Service without our express written permission.</p>
+
+  <h2>6. Disclaimer of Warranties</h2>
+  <p>THE SERVICE IS PROVIDED "AS IS" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. WE DO NOT WARRANT THAT THE SERVICE WILL BE UNINTERRUPTED, ERROR-FREE, OR THAT RESULTS WILL MEET YOUR REQUIREMENTS.</p>
+
+  <h2>7. Limitation of Liability</h2>
+  <p>TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, WE SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY LOSS OF PROFITS, REVENUE, DATA, OR GOODWILL, ARISING OUT OF OR IN CONNECTION WITH YOUR USE OF THE SERVICE, EVEN IF WE HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.</p>
+  <p>OUR TOTAL LIABILITY TO YOU FOR ANY CLAIM ARISING FROM THESE TERMS OR YOUR USE OF THE SERVICE SHALL NOT EXCEED THE AMOUNT YOU PAID US IN THE THREE MONTHS PRECEDING THE CLAIM.</p>
+
+  <h2>8. Indemnification</h2>
+  <p>You agree to indemnify and hold us harmless from any claims, losses, damages, liabilities, costs, and expenses (including legal fees) arising from your use of the Service, your violation of these Terms, or your infringement of any third-party rights.</p>
+
+  <h2>9. Changes to the Service and Terms</h2>
+  <p>We may modify the Service or these Terms at any time. We will post updated Terms on this page with a revised date. Continued use of the Service after changes constitutes acceptance. For material changes affecting paid subscribers, we will provide notice by email.</p>
+
+  <h2>10. Termination</h2>
+  <p>You may stop using the Service at any time. We may suspend or terminate your access for violation of these Terms, non-payment, or any other reason at our discretion. Upon termination, your license key will be revoked and no refund will be issued except as described in Section 2.</p>
+
+  <h2>11. Governing Law</h2>
+  <p>These Terms are governed by the laws of the jurisdiction in which the Service operator is domiciled, without regard to conflict of law principles. Any disputes shall be resolved in the courts of that jurisdiction.</p>
+
+  <h2>12. Contact</h2>
+  <p>For any questions about these Terms, contact us at:<br>
+  <a href="mailto:hello@scaylr.io">hello@scaylr.io</a></p>
+
 </div>
 </body>
 </html>

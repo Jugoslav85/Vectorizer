@@ -4,7 +4,6 @@ from datetime import datetime, timedelta, timezone
 from flask import Flask, request, jsonify, send_from_directory, send_file, Response, make_response
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_wtf.csrf import CSRFProtect
 from vtracer_engine import vectorize
 
 BASE_DIR    = Path(__file__).parent
@@ -15,15 +14,17 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 
 app = Flask(__name__, static_folder=str(STATIC_DIR))
 app.secret_key = os.environ.get("SECRET_KEY", "scaylr-dev-key-change-in-prod")
-app.config["WTF_CSRF_ENABLED"] = False
-
 limiter = Limiter(get_remote_address, app=app, default_limits=[], storage_uri="memory://")
-csrf = CSRFProtect(app)
+
 
 ALLOWED        = {".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif"}
 MAX_FILE_BYTES = 20 * 1024 * 1024
 CACHE_TTL      = 3600
 _cache: dict   = {}
+
+# Limit concurrent conversions to 1 per worker to prevent CPU starvation
+import threading
+_conversion_lock = threading.Semaphore(1)
 
 _KEY_SECRET            = os.environ.get("LICENSE_SECRET",        "scaylr-key-secret-change-in-prod")
 _STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
@@ -39,24 +40,57 @@ _USE_POSTGRES = bool(_DATABASE_URL)
 if _USE_POSTGRES:
     import psycopg2
     import psycopg2.extras
+    from psycopg2 import pool as _pg_pool
     print(f"[db] using Postgres", flush=True)
 else:
     import sqlite3
     _DB_PATH = str(BASE_DIR / "scaylr.db")
     print(f"[db] using SQLite at {_DB_PATH}", flush=True)
 
+# ── Connection pool (Postgres only) ───────────────────────────────────────────
+_pg_connection_pool = None
+
+def _get_pool():
+    global _pg_connection_pool
+    if _USE_POSTGRES and _pg_connection_pool is None:
+        _pg_connection_pool = _pg_pool.ThreadedConnectionPool(
+            minconn=1, maxconn=8, dsn=_DATABASE_URL
+        )
+        print("[db] connection pool initialised (max=8)", flush=True)
+    return _pg_connection_pool
+
+
+class _PooledConn:
+    """Context manager that borrows/returns a Postgres pooled connection."""
+    def __init__(self):
+        self._pool = _get_pool()
+        self._conn = None
+    def __enter__(self):
+        self._conn = self._pool.getconn()
+        self._conn.autocommit = False
+        return self._conn
+    def __exit__(self, exc_type, *_):
+        if exc_type:
+            try: self._conn.rollback()
+            except Exception: pass
+        self._pool.putconn(self._conn)
 
 def _db():
-    """Return an open DB connection. Caller must use as context manager."""
+    """Return an open DB connection context manager."""
     if _USE_POSTGRES:
-        conn = psycopg2.connect(_DATABASE_URL)
-        conn.autocommit = False
-        return conn
+        return _PooledConn()
     else:
-        conn = sqlite3.connect(_DB_PATH)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        return conn
+        import contextlib
+        @contextlib.contextmanager
+        def _sqlite_ctx():
+            conn = sqlite3.connect(_DB_PATH)
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA journal_mode=WAL")
+            try:
+                yield conn
+            finally:
+                conn.close()
+        return _sqlite_ctx()
 
 def _cursor(conn):
     """Return a dict-returning cursor for either backend."""
@@ -90,36 +124,27 @@ def _db_init():
     """Create tables — idempotent, safe to call on every startup."""
     with _db() as conn:
         cur = _cursor(conn)
-        if _USE_POSTGRES:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS pro_keys (
-                    key                    TEXT PRIMARY KEY,
-                    email                  TEXT NOT NULL,
-                    stripe_customer_id     TEXT,
-                    stripe_subscription_id TEXT UNIQUE,
-                    status                 TEXT NOT NULL DEFAULT 'active',
-                    created_at             TEXT NOT NULL,
-                    expires_at             TEXT NOT NULL,
-                    renewed_at             TEXT
-                )
-            """)
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_subscription ON pro_keys(stripe_subscription_id)")
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_email ON pro_keys(email)")
-        else:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS pro_keys (
-                    key                    TEXT PRIMARY KEY,
-                    email                  TEXT NOT NULL,
-                    stripe_customer_id     TEXT,
-                    stripe_subscription_id TEXT UNIQUE,
-                    status                 TEXT NOT NULL DEFAULT 'active',
-                    created_at             TEXT NOT NULL,
-                    expires_at             TEXT NOT NULL,
-                    renewed_at             TEXT
-                )
-            """)
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_subscription ON pro_keys(stripe_subscription_id)")
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_email ON pro_keys(email)")
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS pro_keys (
+                key                    TEXT PRIMARY KEY,
+                email                  TEXT NOT NULL,
+                stripe_customer_id     TEXT,
+                stripe_subscription_id TEXT UNIQUE,
+                status                 TEXT NOT NULL DEFAULT 'active',
+                created_at             TEXT NOT NULL,
+                expires_at             TEXT NOT NULL,
+                renewed_at             TEXT
+            )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_subscription ON pro_keys(stripe_subscription_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_email ON pro_keys(email)")
+        # Stripe event idempotency table — prevents duplicate key/email on webhook retry
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS stripe_events (
+                event_id   TEXT PRIMARY KEY,
+                processed_at TEXT NOT NULL
+            )
+        """)
         conn.commit()
     print("[db] tables ready", flush=True)
 
@@ -162,6 +187,9 @@ def _validate_key(key: str) -> bool:
         if row["status"] != "active":
             return False
         expires = datetime.fromisoformat(row["expires_at"])
+        # Ensure timezone-aware comparison — treat naive datetimes as UTC
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
         return expires > datetime.now(timezone.utc)
     except Exception:
         return False
@@ -253,6 +281,24 @@ def stripe_webhook():
     event_id   = event.get("id", "")
     obj        = event.get("data", {}).get("object", {})
     print(f"[webhook] {event_type} ({event_id[:12]})", flush=True)
+
+    # ── Idempotency check — skip already-processed events ─────────────────────
+    if event_id:
+        try:
+            with _db() as conn:
+                cur = _cursor(conn)
+                cur.execute(_q("SELECT event_id FROM stripe_events WHERE event_id = %s"), (event_id,))
+                if _fetchone(cur):
+                    print(f"[webhook] duplicate event {event_id[:12]} — skipping", flush=True)
+                    return jsonify({"ok": True})
+                cur.execute(
+                    _q("INSERT INTO stripe_events (event_id, processed_at) VALUES (%s, %s)"),
+                    (event_id, _now_iso())
+                )
+                conn.commit()
+        except Exception as e:
+            print(f"[webhook] idempotency check error: {e}", flush=True)
+            # Don't block processing if idempotency table fails
 
     if event_type == "invoice.paid":
         sub_id      = obj.get("subscription")
@@ -476,7 +522,8 @@ def api_vectorize():
         from PIL import Image
         import io
         img_check = Image.open(io.BytesIO(raw))
-        img_check.verify()
+        img_check.load()  # fully decode without destroying stream
+        img_check.close()
     except Exception:
         return jsonify({"error": "Invalid image file"}), 400
 
@@ -517,35 +564,43 @@ def api_vectorize():
         resp.set_cookie("vsid", session_id, max_age=86400, samesite="Lax", httponly=True)
         return resp
 
-    t0 = time.time()
-    import concurrent.futures
-    def _run():
-        return vectorize(
-            raw,
-            posterize_bits    = settings["posterize_bits"],
-            unsharp_radius    = settings["unsharp_radius"],
-            unsharp_percent   = settings["unsharp_percent"],
-            unsharp_threshold = 4,
-            blur_radius       = settings["blur_radius"],
-            engine_mode       = settings["engine_mode"],
-            simplify          = True,
-            simplify_epsilon  = settings["simplify_epsilon"],
-            hierarchical      = "stacked",
-            max_iterations    = 1,
-            path_precision    = 1,
-            filter_speckle    = settings["filter_speckle"],
-            color_precision   = settings["color_precision"],
-            layer_difference  = settings["layer_difference"],
-            corner_threshold  = settings["corner_threshold"],
-        )
+    # Try to acquire the conversion slot — reject immediately if busy
+    acquired = _conversion_lock.acquire(blocking=False)
+    if not acquired:
+        return jsonify({"error": "Server is busy processing another image. Please try again in a moment."}), 429
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(_run)
-        try:
-            svg = future.result(timeout=90)
-        except concurrent.futures.TimeoutError:
-            future.cancel()
-            return jsonify({"error": "Processing timed out. Try a smaller image or simpler preset."}), 504
+    t0 = time.time()
+    try:
+        import concurrent.futures
+        def _run():
+            return vectorize(
+                raw,
+                posterize_bits    = settings["posterize_bits"],
+                unsharp_radius    = settings["unsharp_radius"],
+                unsharp_percent   = settings["unsharp_percent"],
+                unsharp_threshold = 4,
+                blur_radius       = settings["blur_radius"],
+                engine_mode       = settings["engine_mode"],
+                simplify          = True,
+                simplify_epsilon  = settings["simplify_epsilon"],
+                hierarchical      = "stacked",
+                max_iterations    = 1,
+                path_precision    = 1,
+                filter_speckle    = settings["filter_speckle"],
+                color_precision   = settings["color_precision"],
+                layer_difference  = settings["layer_difference"],
+                corner_threshold  = settings["corner_threshold"],
+            )
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(_run)
+            try:
+                svg = future.result(timeout=90)
+            except concurrent.futures.TimeoutError:
+                future.cancel()
+                return jsonify({"error": "Processing timed out. Try a smaller image or simpler preset."}), 504
+    finally:
+        _conversion_lock.release()
 
     elapsed  = round(time.time() - t0, 2)
     paths    = svg.count("<path")
@@ -553,9 +608,13 @@ def api_vectorize():
     out_path = OUTPUT_DIR / f"{job_id}.svg"
     out_path.write_text(svg, encoding="utf-8")
 
-    svgs = sorted(OUTPUT_DIR.glob("*.svg"), key=lambda p: p.stat().st_mtime)
-    for old in svgs[:-20]:
-        old.unlink(missing_ok=True)
+    # Prune old SVG files atomically to avoid race between workers
+    try:
+        svgs = sorted(OUTPUT_DIR.glob("*.svg"), key=lambda p: p.stat().st_mtime)
+        for old in svgs[:-20]:
+            old.unlink(missing_ok=True)
+    except Exception:
+        pass  # Non-fatal — pruning failure doesn't affect the response
 
     _cache_set(session_id, ck, {
         "job_id": job_id, "elapsed": elapsed, "paths": paths,

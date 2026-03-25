@@ -2,21 +2,21 @@
   {
     "file":   "landscape.png",
     "name":   "Gradient Background",
-    "preset": "flat"
+    "preset": "low"
   },
   {
     "file":   "fox.png",
     "name":   "Sunset Scene",
-    "preset": "illustration"
+    "preset": "medium"
   },
   {
     "file":   "neon.jpeg",
     "name":   "Colorful Art",
-    "preset": "photo"
+    "preset": "detailed"
   },
   {
     "file":   "pets.png",
     "name":   "Logo & Clipart",
-    "preset": "logo"
+    "preset": "lineart"
   }
 ]
