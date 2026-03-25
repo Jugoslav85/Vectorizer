@@ -44,6 +44,8 @@ body{
   transition:background .2s,color .2s;
 }
 body.collapsed{grid-template-columns:0px 1fr;}
+body.collapsed main{left:0;}
+body.collapsed .toggle-btn{left:0;}
 
 /* ── Sidebar ── */
 aside{
@@ -258,6 +260,19 @@ main{
   font-size:13px;color:var(--muted);flex-shrink:0;font-family:var(--font-mono);
   transition:background .2s,border-color .2s;
 }
+.toolbar-centre{
+  display:flex;align-items:center;margin:0 auto;
+}
+.toolbar-remove{
+  padding:4px 14px;
+  background:var(--accent);color:#fff;
+  border:none;border-radius:20px;
+  font-size:12px;font-family:var(--font-ui);font-weight:700;
+  cursor:pointer;opacity:.9;
+  transition:opacity .15s,transform .15s;
+  white-space:nowrap;
+}
+.toolbar-remove:hover{opacity:1;transform:scale(1.04);}
 .toolbar-btn{
   background:var(--surface2);border:1px solid var(--border2);color:var(--muted);
   padding:4px 12px;border-radius:5px;cursor:pointer;
@@ -536,7 +551,7 @@ body { padding-top: 52px; }
 #mobile-status, #mobile-result-modal { display: none !important; }
 
 /* Hide new mobile elements on desktop */
-#m-presets, #m-bar, #m-processing, #m-result { display: none; }
+#m-presets, #m-bar, #m-processing, #m-result, #m-thumb-bar { display: none; }
 
 /* ── Tablet (601–900px): keep desktop sidebar, compact ── */
 @media (max-width: 900px) and (min-width: 601px) {
@@ -1318,6 +1333,9 @@ body { padding-top: 52px; }
     <button class="toolbar-btn" onclick="setZoom(zoom+.25)">+</button>
     <button class="toolbar-btn" onclick="fitZoom()">Fit</button>
     <button class="toolbar-btn" onclick="setZoom(1)">1:1</button>
+    <div class="toolbar-centre" style="margin:0 auto;">
+      <button class="toolbar-remove" id="btn-remove-image" onclick="resetToUpload()">✕ Remove image</button>
+    </div>
     <span id="img-meta"></span>
   </div>
 
@@ -1935,11 +1953,8 @@ function load(f) {
       const el=$(id); if(!el) return;
       if(el.tagName==='INPUT') el.value=val; else el.textContent=val;
     });
-    // Close advanced panel
-    const ap=$('advanced-panel');
-    if(ap) ap.style.display='none';
-    const ba=$('btn-advanced');
-    if(ba) ba.textContent='▾ Fine-tune settings';
+    // Close advanced panel properly
+    if (advancedOpen) toggleAdvanced();
     // Apply default preset
     applyPreset('lineart');
   }
@@ -1972,12 +1987,16 @@ function load(f) {
 
 function showUploadScreen(){
   $('upload-screen').style.display='flex';
+  const rmBtn = $('btn-remove-image');
+  if (rmBtn) rmBtn.style.display = 'none';
   $('preview-screen').style.display='none';
   $('results-screen').style.display='none';
   $('toolbar').style.display='none';
 }
 function showPreviewScreen(){
   $('upload-screen').style.display='none';
+  const rmBtn = $('btn-remove-image');
+  if (rmBtn) rmBtn.style.display = 'block';
   $('preview-screen').style.display='flex';
   $('results-screen').style.display='none';
   $('toolbar').style.display='flex';
@@ -1985,6 +2004,8 @@ function showPreviewScreen(){
 }
 function showResultsScreen(){
   $('upload-screen').style.display='none';
+  const rmBtn = $('btn-remove-image');
+  if (rmBtn) rmBtn.style.display = 'block';
   $('preview-screen').style.display='none';
   $('results-screen').style.display='flex';
   $('toolbar').style.display='flex';
@@ -2035,12 +2056,12 @@ function resetToUpload(){
     else el.textContent = val;
   });
 
-  // Close advanced panel if open
-  const ap = $('advanced-panel');
-  if (ap && ap.style.display !== 'none') {
-    ap.style.display = 'none';
-    $('btn-advanced').textContent = '▾ Fine-tune settings';
-  }
+  // Always force advanced panel closed regardless of current state
+  advancedOpen = false;
+  const _panel = $('advanced-panel');
+  const _btn   = $('btn-advanced');
+  if (_panel) _panel.style.maxHeight = '0';
+  if (_btn)   { _btn.classList.remove('open'); _btn.textContent = '▾ Fine-tune settings'; }
 
   // Re-apply default preset (Flat Design)
   applyPreset('lineart');
