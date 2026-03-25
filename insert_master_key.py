@@ -10,7 +10,7 @@ if not DATABASE_URL:
     raise SystemExit("ERROR: DATABASE_URL not set. Run with: railway run python3 insert_master_key.py")
 
 # ── Your details ──────────────────────────────────────────────────
-KEY   = "SCAYLR-552B-2960-5208-4250"
+KEY   = "SCAYLR-EF34-CCF3-2C0F-B82F"
 EMAIL = "jugoslav34@gmail.com"
 # ─────────────────────────────────────────────────────────────────
 
