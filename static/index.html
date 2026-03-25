@@ -1747,6 +1747,15 @@ window.addEventListener('DOMContentLoaded', () => {
   }
   // Show usage badge after pwInit resolves (pwInit is async)
   setTimeout(_updateUsageBadge, 500);
+
+  // If customer just came from Stripe payment, auto-open key entry modal
+  if (new URLSearchParams(window.location.search).get('activated') === '1') {
+    // Only show if they don't already have a stored key
+    const alreadyHasKey = !!localStorage.getItem('scaylr-pro-key');
+    if (!alreadyHasKey) {
+      setTimeout(showKeyModal, 600);
+    }
+  }
 });
 
 // ── Pan & Zoom ─────────────────────────────────────────────
