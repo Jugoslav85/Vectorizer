@@ -58,6 +58,12 @@ def _db():
         conn.execute("PRAGMA journal_mode=WAL")
         return conn
 
+def _cursor(conn):
+    """Return a dict-returning cursor for either backend."""
+    if _USE_POSTGRES:
+        return conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    return conn.cursor()
+
 
 def _q(sql: str) -> str:
     """Convert %s placeholders to ? for SQLite."""
@@ -83,7 +89,7 @@ def _fetchone(cursor):
 def _db_init():
     """Create tables — idempotent, safe to call on every startup."""
     with _db() as conn:
-        cur = conn.cursor()
+        cur = _cursor(conn)
         if _USE_POSTGRES:
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS pro_keys (
@@ -145,7 +151,7 @@ def _validate_key(key: str) -> bool:
         return False
     try:
         with _db() as conn:
-            cur = conn.cursor()
+            cur = _cursor(conn)
             cur.execute(
                 _q("SELECT status, expires_at FROM pro_keys WHERE key = %s"),
                 (key.upper().strip(),)
@@ -286,7 +292,7 @@ def stripe_webhook():
         sub_id = obj.get("id")
         if sub_id:
             with _db() as conn:
-                cur = conn.cursor()
+                cur = _cursor(conn)
                 cur.execute(
                     _q("UPDATE pro_keys SET status='revoked' WHERE stripe_subscription_id=%s"), (sub_id,)
                 )
@@ -297,7 +303,7 @@ def stripe_webhook():
         sub_id = obj.get("subscription")
         if sub_id:
             with _db() as conn:
-                cur = conn.cursor()
+                cur = _cursor(conn)
                 cur.execute(
                     _q("UPDATE pro_keys SET status='revoked' WHERE stripe_subscription_id=%s"), (sub_id,)
                 )
@@ -318,7 +324,7 @@ def api_validate_key():
     if valid:
         try:
             with _db() as conn:
-                cur = conn.cursor()
+                cur = _cursor(conn)
                 cur.execute(_q("SELECT expires_at FROM pro_keys WHERE key=%s"), (key,))
                 row = _fetchone(cur)
             expires = row["expires_at"] if row else None
@@ -376,7 +382,7 @@ def debug_key(key):
     hmac_ok      = _h.compare_digest(sig_provided, sig_expected)
     try:
         with _db() as conn:
-            cur = conn.cursor()
+            cur = _cursor(conn)
             cur.execute(_q("SELECT status, expires_at FROM pro_keys WHERE key = %s"),
                         (key.upper().strip(),))
             row = _fetchone(cur)
