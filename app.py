@@ -535,16 +535,19 @@ def api_vectorize():
         except: return d
 
     settings = {
-        "blur_radius":      gf("blur_radius",      0.8),
-        "color_precision":  gi("color_precision",   8),
-        "layer_difference": gi("layer_difference",  1),
-        "filter_speckle":   gi("filter_speckle",    6),
+        "blur_radius":      gf("blur_radius",       0.8),
+        "median_size":      gi("median_size",        3),
+        "morph_close_size": gi("morph_close_size",   3),
+        "color_precision":  gi("color_precision",    6),
+        "layer_difference": gi("layer_difference",   4),
+        "filter_speckle":   gi("filter_speckle",     6),
         "engine_mode":      request.form.get("engine_mode", "auto"),
-        "posterize_bits":   gi("posterize_bits",    7),
-        "unsharp_percent":  gi("unsharp_percent",   90),
-        "unsharp_radius":   gf("unsharp_radius",    0.5),
-        "simplify_epsilon": gf("simplify_epsilon",  0.3),
-        "corner_threshold": gi("corner_threshold",  30),
+        "posterize_bits":   gi("posterize_bits",     6),
+        "unsharp_percent":  gi("unsharp_percent",    90),
+        "unsharp_radius":   gf("unsharp_radius",     0.5),
+        "simplify_epsilon": gf("simplify_epsilon",   0.3),
+        "corner_threshold": gi("corner_threshold",   48),
+        "splice_threshold": gi("splice_threshold",   70),
     }
 
     session_id = _get_session_id(request)
@@ -571,34 +574,27 @@ def api_vectorize():
 
     t0 = time.time()
     try:
-        import concurrent.futures
-        def _run():
-            return vectorize(
-                raw,
-                posterize_bits    = settings["posterize_bits"],
-                unsharp_radius    = settings["unsharp_radius"],
-                unsharp_percent   = settings["unsharp_percent"],
-                unsharp_threshold = 4,
-                blur_radius       = settings["blur_radius"],
-                engine_mode       = settings["engine_mode"],
-                simplify          = True,
-                simplify_epsilon  = settings["simplify_epsilon"],
-                hierarchical      = "stacked",
-                max_iterations    = 1,
-                path_precision    = 1,
-                filter_speckle    = settings["filter_speckle"],
-                color_precision   = settings["color_precision"],
-                layer_difference  = settings["layer_difference"],
-                corner_threshold  = settings["corner_threshold"],
-            )
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(_run)
-            try:
-                svg = future.result(timeout=90)
-            except concurrent.futures.TimeoutError:
-                future.cancel()
-                return jsonify({"error": "Processing timed out. Try a smaller image or simpler preset."}), 504
+        svg = vectorize(
+            raw,
+            blur_radius       = settings["blur_radius"],
+            median_size       = settings["median_size"],
+            morph_close_size  = settings["morph_close_size"],
+            posterize_bits    = settings["posterize_bits"],
+            unsharp_percent   = settings["unsharp_percent"],
+            unsharp_radius    = settings["unsharp_radius"],
+            unsharp_threshold = 4,
+            engine_mode       = settings["engine_mode"],
+            simplify          = True,
+            simplify_epsilon  = settings["simplify_epsilon"],
+            filter_speckle    = settings["filter_speckle"],
+            color_precision   = settings["color_precision"],
+            layer_difference  = settings["layer_difference"],
+            corner_threshold  = settings["corner_threshold"],
+            splice_threshold  = settings["splice_threshold"],
+        )
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": f"Processing failed: {e}"}), 500
     finally:
         _conversion_lock.release()
 

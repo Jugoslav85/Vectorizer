@@ -1154,24 +1154,21 @@ body { padding-top: 52px; }
 
     <div class="sec-label">Output style</div>
     <div class="presets-grid">
-      <div class="has-tooltip" style="grid-column:1/-1;">
-        <button class="btn-preset btn-preset-wide" onclick="applyPreset('lineart')">✏ Line Art</button>
-        <div class="tip">B&amp;W binary mode with auto threshold. Best for sketches, drawings, and line art. Produces clean smooth paths.</div>
-      </div>
-
-      <div class="sec-label" style="margin:12px 0 6px;">Complex image</div>
-
       <div class="has-tooltip">
-        <button class="btn-preset" onclick="applyPreset('low')">Low</button>
-        <div class="tip">Simplified output — fewer colours, bold shapes. Great for flat illustrations, logos, and icons.</div>
+        <button class="btn-preset" onclick="applyPreset('lineart')">Line Art</button>
+        <div class="tip">B&amp;W binary mode. Best for sketches, drawings, pen and ink. Clean smooth paths with minimal noise.</div>
       </div>
       <div class="has-tooltip">
-        <button class="btn-preset" onclick="applyPreset('medium')">Medium</button>
-        <div class="tip">Balanced detail and file size. Works well for most illustrations and digital art.</div>
+        <button class="btn-preset" onclick="applyPreset('flat')">Flat Art</button>
+        <div class="tip">Simplified colour output. Ideal for logos, icons, and flat-style illustrations with solid fills.</div>
       </div>
       <div class="has-tooltip">
-        <button class="btn-preset" onclick="applyPreset('detailed')">Very Detailed</button>
-        <div class="tip">Maximum colour depth and path detail. Best for complex AI art, photos, and rich illustrations. Takes longer.</div>
+        <button class="btn-preset" onclick="applyPreset('illustration')">Illustration</button>
+        <div class="tip">Balanced detail and smooth curves. Works well for digital art, paintings, and complex illustrations.</div>
+      </div>
+      <div class="has-tooltip">
+        <button class="btn-preset" onclick="applyPreset('detailed')">High Detail</button>
+        <div class="tip">Maximum colour depth and path fidelity. Best for complex AI art and richly detailed images. Takes longer.</div>
       </div>
     </div>
 
@@ -1180,50 +1177,84 @@ body { padding-top: 52px; }
     </button>
     <div class="advanced-panel" id="advanced-panel">
       <div class="advanced-hint">
-        <strong>Tip —</strong> Pick a style above first, then adjust these sliders to fine-tune your result.
+        <strong>Tip —</strong> Pick a style above first, then adjust these to fine-tune your result.
+      </div>
+
+      <div class="sec-label" style="margin-top:8px;">Pre-processing</div>
+
+      <div class="field">
+        <div class="field-row"><label>Blur</label><span class="field-val" id="v-br">0.8</span></div>
+        <div class="field-desc">Gaussian blur before tracing. Smooths noise. Higher = more smoothing.</div>
+        <input type="range" id="blur-radius" min="0" max="3.0" step="0.1" value="0.8" oninput="$('v-br').textContent=(+this.value).toFixed(1);markSettingsChanged()"/>
       </div>
 
       <div class="field">
-        <div class="field-row"><label>Smooth edges</label><span class="field-val" id="v-br">0.8</span></div>
-        <div class="field-desc">Edge-aware smoothing before tracing. Reduces noise while preserving hard edges.</div>
-        <input type="range" id="blur-radius" min="0" max="3.0" step="0.1" value="0.8" oninput="$('v-br').textContent=this.value;markSettingsChanged()"/>
-      </div>
-      <div class="field">
-        <div class="field-row"><label>Color depth</label><span class="field-val" id="v-cp">8</span></div>
-        <div class="field-desc">How many colors are used in the output. Higher = more accurate colors.</div>
-        <input type="range" id="color-precision" min="1" max="8" value="8" oninput="$('v-cp').textContent=this.value;markSettingsChanged()"/>
-      </div>
-      <div class="field">
-        <div class="field-row"><label>Shape separation</label><span class="field-val" id="v-ld">1</span></div>
-        <div class="field-desc">How distinct colors need to be to become separate shapes. Lower = more shapes.</div>
-        <input type="range" id="layer-difference" min="1" max="64" value="1" oninput="$('v-ld').textContent=this.value;markSettingsChanged()"/>
-      </div>
-      <div class="field">
-        <div class="field-row"><label>Clean up noise</label><span class="field-val" id="v-fs">6</span></div>
-        <div class="field-desc">Removes tiny imperfections and specks. Higher = cleaner but may remove small details.</div>
-        <input type="range" id="filter-speckle" min="0" max="32" value="6" oninput="$('v-fs').textContent=this.value;markSettingsChanged()"/>
+        <div class="field-row"><label>Median filter</label><span class="field-val" id="v-ms">3</span></div>
+        <div class="field-desc">Removes speckle noise while keeping hard edges sharp. 1 = off, 3 = mild, 5 = strong.</div>
+        <input type="range" id="median-size" min="1" max="7" step="2" value="3" oninput="$('v-ms').textContent=this.value;markSettingsChanged()"/>
       </div>
 
       <div class="field">
-        <div class="field-row"><label>Posterize</label><span class="field-val" id="v-pb">7</span></div>
-        <div class="field-desc">Colour banding level before tracing. Lower = fewer tones, flatter look. Higher = more tonal detail.</div>
-        <input type="range" id="posterize-bits" min="2" max="8" value="7" oninput="$('v-pb').textContent=this.value;markSettingsChanged()"/>
-      </div>
-      <div class="field">
-        <div class="field-row"><label>Unsharp radius</label><span class="field-val" id="v-ur">0.5</span></div>
-        <div class="field-desc">Radius of the sharpening mask applied before tracing. Higher = wider sharpening halo.</div>
-        <input type="range" id="unsharp-radius" min="0" max="3.0" step="0.1" value="0.5" oninput="$('v-ur').textContent=(+this.value).toFixed(1);markSettingsChanged()"/>
+        <div class="field-row"><label>Stroke repair</label><span class="field-val" id="v-mc">3</span></div>
+        <div class="field-desc">Closes small gaps in lineart strokes before tracing. 1 = off. Only affects Line Art mode.</div>
+        <input type="range" id="morph-close-size" min="1" max="7" step="2" value="3" oninput="$('v-mc').textContent=this.value;markSettingsChanged()"/>
       </div>
 
       <div class="field">
         <div class="field-row"><label>Edge sharpness</label><span class="field-val" id="v-up">90</span></div>
-        <div class="field-desc">How aggressively edges are sharpened before tracing. Higher = crisper edges.</div>
+        <div class="field-desc">Unsharp mask strength. Recovers edge crispness after blurring. 0 = off.</div>
         <input type="range" id="unsharp-percent" min="0" max="200" step="10" value="90" oninput="$('v-up').textContent=this.value;markSettingsChanged()"/>
       </div>
 
       <div class="field">
-        <div class="field-row"><label>Path smoothing</label><span class="field-val" id="v-se">0.3</span></div>
-        <div class="field-desc">How aggressively redundant path points are removed. Higher = smoother but less precise.</div>
+        <div class="field-row"><label>Sharpening radius</label><span class="field-val" id="v-ur">0.5</span></div>
+        <div class="field-desc">How wide the sharpening halo is. Higher = broader edge enhancement.</div>
+        <input type="range" id="unsharp-radius" min="0" max="3.0" step="0.1" value="0.5" oninput="$('v-ur').textContent=(+this.value).toFixed(1);markSettingsChanged()"/>
+      </div>
+
+      <div class="field">
+        <div class="field-row"><label>Posterize</label><span class="field-val" id="v-pb">6</span></div>
+        <div class="field-desc">Colour banding before tracing. Lower = flatter, bolder shapes. Higher = more tonal gradients.</div>
+        <input type="range" id="posterize-bits" min="2" max="8" value="6" oninput="$('v-pb').textContent=this.value;markSettingsChanged()"/>
+      </div>
+
+      <div class="sec-label" style="margin-top:16px;">Tracing</div>
+
+      <div class="field">
+        <div class="field-row"><label>Color depth</label><span class="field-val" id="v-cp">6</span></div>
+        <div class="field-desc">How precisely colours are matched. Higher = more accurate, more paths.</div>
+        <input type="range" id="color-precision" min="1" max="8" value="6" oninput="$('v-cp').textContent=this.value;markSettingsChanged()"/>
+      </div>
+
+      <div class="field">
+        <div class="field-row"><label>Shape separation</label><span class="field-val" id="v-ld">4</span></div>
+        <div class="field-desc">Colour difference needed to create a separate shape. Lower = more shapes.</div>
+        <input type="range" id="layer-difference" min="1" max="64" value="4" oninput="$('v-ld').textContent=this.value;markSettingsChanged()"/>
+      </div>
+
+      <div class="field">
+        <div class="field-row"><label>Noise removal</label><span class="field-val" id="v-fs">6</span></div>
+        <div class="field-desc">Removes tiny stray paths. Higher = cleaner but may lose fine detail.</div>
+        <input type="range" id="filter-speckle" min="0" max="32" value="6" oninput="$('v-fs').textContent=this.value;markSettingsChanged()"/>
+      </div>
+
+      <div class="field">
+        <div class="field-row"><label>Curve smoothness</label><span class="field-val" id="v-ct">48</span></div>
+        <div class="field-desc">Higher = fewer corners, smoother curves. Lower = more angular, more detail.</div>
+        <input type="range" id="corner-threshold" min="1" max="180" value="48" oninput="$('v-ct').textContent=this.value;markSettingsChanged()"/>
+      </div>
+
+      <div class="field">
+        <div class="field-row"><label>Curve joining</label><span class="field-val" id="v-st">70</span></div>
+        <div class="field-desc">How aggressively adjacent curve segments are merged. Higher = fewer, longer, smoother splines.</div>
+        <input type="range" id="splice-threshold" min="1" max="180" value="70" oninput="$('v-st').textContent=this.value;markSettingsChanged()"/>
+      </div>
+
+      <div class="sec-label" style="margin-top:16px;">Post-processing</div>
+
+      <div class="field">
+        <div class="field-row"><label>Path simplify</label><span class="field-val" id="v-se">0.3</span></div>
+        <div class="field-desc">Removes redundant path points on straight segments. Higher = fewer points, smoother output.</div>
         <input type="range" id="simplify-epsilon" min="0" max="2.0" step="0.1" value="0.3" oninput="$('v-se').textContent=(+this.value).toFixed(1);markSettingsChanged()"/>
       </div>
     </div>
@@ -1266,10 +1297,10 @@ body { padding-top: 52px; }
 
   <!-- MOBILE TOP BAR: presets always visible -->
   <div id="m-presets">
-    <button class="m-preset active" onclick="mPreset('lineart')">✏ Line Art</button>
-    <button class="m-preset" onclick="mPreset('low')">Low</button>
-    <button class="m-preset" onclick="mPreset('medium')">Medium</button>
-    <button class="m-preset" onclick="mPreset('detailed')">Detailed</button>
+    <button class="m-preset" onclick="mPreset('lineart')">Line Art</button>
+    <button class="m-preset" onclick="mPreset('flat')">Flat Art</button>
+    <button class="m-preset" onclick="mPreset('illustration')">Illustration</button>
+    <button class="m-preset" onclick="mPreset('detailed')">High Detail</button>
   </div>
 
   <!-- MOBILE IMAGE PREVIEW: shows after file loaded -->
@@ -1502,32 +1533,72 @@ function toggleAdvanced() {
 });
 
 // ── Presets ────────────────────────────────────────────────
+// ── Presets ────────────────────────────────────────────────
+// Each preset sets ALL fine-tune sliders.
+// Fields: br=blur, ms=median, mc=morph-close, up=unsharp%, ur=unsharp-radius,
+//         pb=posterize, cp=color-precision, ld=layer-diff, fs=filter-speckle,
+//         ct=corner-threshold, st=splice-threshold, se=simplify-epsilon, mode
 const PRESETS = {
-  // Line art — pure B&W binary mode (corner_threshold handled by engine at 60)
-  lineart:  { cp:4, ld:1,  fs:4,  br:0.3,  mode:'lineart', ct:60 },
-  // Colour complexity levels — ct controls smoothness (higher = smoother curves)
-  low:      { cp:4, ld:8,  fs:16, br:1.0,  mode:'color',   ct:45 },
-  medium:   { cp:6, ld:3,  fs:8,  br:0.8,  mode:'color',   ct:30 },
-  detailed: { cp:8, ld:1,  fs:2,  br:0.5,  mode:'color',   ct:15 },
+  lineart: {
+    // B&W line art — strong noise cleanup, gap-closing, smooth splines
+    br:0.5,  ms:3, mc:3,  up:80,  ur:0.5, pb:6,
+    cp:4,    ld:1, fs:4,  ct:65,  st:80,  se:0.4,
+    mode:'lineart',
+  },
+  flat: {
+    // Flat art / logos — aggressive simplification, bold shapes, fast
+    br:1.2,  ms:3, mc:1,  up:60,  ur:0.5, pb:3,
+    cp:4,    ld:16, fs:12, ct:55,  st:80,  se:0.5,
+    mode:'color',
+  },
+  illustration: {
+    // Illustration — balanced detail and smooth curves
+    br:0.8,  ms:3, mc:1,  up:90,  ur:0.5, pb:6,
+    cp:6,    ld:4,  fs:6,  ct:48,  st:70,  se:0.3,
+    mode:'color',
+  },
+  detailed: {
+    // High detail — maximum fidelity, slower
+    br:0.4,  ms:1, mc:1,  up:120, ur:0.8, pb:8,
+    cp:8,    ld:1,  fs:2,  ct:30,  st:55,  se:0.1,
+    mode:'color',
+  },
 };
-// Track active engine mode
-let engineMode = 'auto';
+
+let engineMode  = 'auto';
 let activePreset = null;
-let _currentCt = 60;   // matches lineart preset default; overwritten by applyPreset()
+
 function applyPreset(name) {
   const p = PRESETS[name]; if (!p) return;
-  if (activePreset === name) return; // already active — no deselect
-  
+  if (activePreset === name) return;
   activePreset = name;
+
   document.querySelectorAll('.btn-preset').forEach(b => b.classList.remove('active'));
-  document.querySelector(`[onclick="applyPreset('${name}')"]`).classList.add('active');
+  // Match by both onclick="applyPreset(...)" and onclick="mPreset(...)"
+  document.querySelectorAll(`[onclick*="applyPreset('${name}')"], [onclick*="mPreset('${name}')"]`)
+    .forEach(b => b.classList.add('active'));
+
   engineMode = p.mode || 'auto';
-  const set = (id, lbl, val, dec=0) => { $(id).value=val; $(lbl).textContent=(+val).toFixed(dec); };
-  set('blur-radius',     'v-br', p.br, 1);
-  set('color-precision', 'v-cp', p.cp);
-  set('layer-difference','v-ld', p.ld);
-  set('filter-speckle',  'v-fs', p.fs);
-  window._currentCt = p.ct !== undefined ? p.ct : 30;
+
+  const setR  = (id, lbl, val, dec=0) => {
+    const el = $(id); if (!el) return;
+    el.value = val;
+    const lb = $(lbl); if (lb) lb.textContent = dec ? (+val).toFixed(dec) : val;
+  };
+
+  setR('blur-radius',       'v-br', p.br,  1);
+  setR('median-size',       'v-ms', p.ms);
+  setR('morph-close-size',  'v-mc', p.mc);
+  setR('unsharp-percent',   'v-up', p.up);
+  setR('unsharp-radius',    'v-ur', p.ur,  1);
+  setR('posterize-bits',    'v-pb', p.pb);
+  setR('color-precision',   'v-cp', p.cp);
+  setR('layer-difference',  'v-ld', p.ld);
+  setR('filter-speckle',    'v-fs', p.fs);
+  setR('corner-threshold',  'v-ct', p.ct);
+  setR('splice-threshold',  'v-st', p.st);
+  setR('simplify-epsilon',  'v-se', p.se,  1);
+
   markSettingsChanged();
 }
 
@@ -1537,12 +1608,16 @@ let hasResult = false;
 function getSettingsSnapshot() {
   return JSON.stringify({
     br:  $('blur-radius').value,
+    ms:  $('median-size').value,
+    mc:  $('morph-close-size').value,
+    up:  $('unsharp-percent').value,
+    ur:  $('unsharp-radius').value,
+    pb:  $('posterize-bits').value,
     cp:  $('color-precision').value,
     ld:  $('layer-difference').value,
     fs:  $('filter-speckle').value,
-    pb:  $('posterize-bits').value,
-    ur:  $('unsharp-radius').value,
-    up:  $('unsharp-percent').value,
+    ct:  $('corner-threshold').value,
+    st:  $('splice-threshold').value,
     se:  $('simplify-epsilon').value,
     mode: engineMode,
     preset: activePreset,
@@ -1791,7 +1866,7 @@ window.addEventListener('DOMContentLoaded', () => {
     mPreset('lineart');
     mSetStatus('Upload an image to start', '');
   } else {
-    applyPreset('lineart');  // sets engineMode, _currentCt, and all slider values
+    applyPreset('lineart');  // sets engineMode and all slider values
   }
   // Show usage badge after pwInit resolves (pwInit is async)
   setTimeout(_updateUsageBadge, 500);
@@ -1943,11 +2018,20 @@ function load(f) {
     document.querySelectorAll('.btn-preset').forEach(b=>b.classList.remove('active'));
     document.querySelectorAll('.mobile-preset-btn').forEach(b=>b.classList.remove('active'));
     // Reset sliders
-    const defs={'blur-radius':0.8,'v-br':0.8,'color-precision':8,'v-cp':8,
-      'layer-difference':1,'v-ld':1,'filter-speckle':6,'v-fs':6,
-      'posterize-bits':7,'v-pb':7,'unsharp-percent':90,'v-up':90,
-      'simplify-epsilon':0.3,'v-se':'0.3',
-      'unsharp-radius':0.5,'v-ur':'0.5'};
+    const defs = {
+      'blur-radius':0.8,      'v-br':'0.8',
+      'median-size':3,        'v-ms':'3',
+      'morph-close-size':3,   'v-mc':'3',
+      'unsharp-percent':90,   'v-up':'90',
+      'unsharp-radius':0.5,   'v-ur':'0.5',
+      'posterize-bits':6,     'v-pb':'6',
+      'color-precision':6,    'v-cp':'6',
+      'layer-difference':4,   'v-ld':'4',
+      'filter-speckle':6,     'v-fs':'6',
+      'corner-threshold':48,  'v-ct':'48',
+      'splice-threshold':70,  'v-st':'70',
+      'simplify-epsilon':0.3, 'v-se':'0.3',
+    };
   // Reset checkboxes to defaults
     Object.entries(defs).forEach(([id,val])=>{
       const el=$(id); if(!el) return;
@@ -2201,17 +2285,20 @@ async function runVectorize(){
   setTimeout(()=>advanceLB(2),2300);
 
   const fd=new FormData();
-  fd.append('file',currentFile);
+  fd.append('file',             currentFile);
   fd.append('engine_mode',      engineMode);
-  fd.append('corner_threshold',  window._currentCt !== undefined ? window._currentCt : 30);
   fd.append('blur_radius',      $('blur-radius').value);
-  fd.append('posterize_bits',   $('posterize-bits').value);
+  fd.append('median_size',      $('median-size').value);
+  fd.append('morph_close_size', $('morph-close-size').value);
   fd.append('unsharp_percent',  $('unsharp-percent').value);
   fd.append('unsharp_radius',   $('unsharp-radius').value);
-  fd.append('simplify_epsilon', $('simplify-epsilon').value);
+  fd.append('posterize_bits',   $('posterize-bits').value);
   fd.append('color_precision',  $('color-precision').value);
   fd.append('layer_difference', $('layer-difference').value);
   fd.append('filter_speckle',   $('filter-speckle').value);
+  fd.append('corner_threshold', $('corner-threshold').value);
+  fd.append('splice_threshold', $('splice-threshold').value);
+  fd.append('simplify_epsilon', $('simplify-epsilon').value);
 
   try{
     currentAbortController = new AbortController();
