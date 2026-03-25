@@ -5,7 +5,7 @@ It connects directly to your Railway Postgres using DATABASE_URL.
 import os, hmac, hashlib, secrets
 from datetime import datetime, timezone
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "")
+DATABASE_URL = "postgresql://postgres:YfYvJLQBZTePTCkMyWJSGjLMFHjUesIX@crossover.proxy.rlwy.net:14598/railway"
 if not DATABASE_URL:
     raise SystemExit("ERROR: DATABASE_URL not set. Run with: railway run python3 insert_master_key.py")
 
