@@ -1,5 +1,6 @@
-import uuid, time, traceback, hashlib, json, os, hmac as _hmac
+import uuid, time, traceback, hashlib, json, os, hmac as _hmac, sqlite3, secrets
 from pathlib import Path
+from datetime import datetime, timedelta, timezone
 from flask import Flask, request, jsonify, send_from_directory, send_file, Response, make_response
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -10,6 +11,7 @@ BASE_DIR    = Path(__file__).parent
 OUTPUT_DIR  = BASE_DIR / "outputs"
 STATIC_DIR  = BASE_DIR / "static"
 SAMPLES_DIR = STATIC_DIR / "images" / "samples"
+DB_PATH     = BASE_DIR / "scaylr.db"
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 app = Flask(__name__, static_folder=str(STATIC_DIR))
@@ -24,13 +26,48 @@ MAX_FILE_BYTES = 20 * 1024 * 1024
 CACHE_TTL      = 3600
 _cache: dict   = {}
 
-# ── License key validation ────────────────────────────────────────────────────
-# Keys are HMAC-SHA256 signed — no database required
-# Format: SCAYLR-{UID4}-{SIG4}-{SIG4}-{SIG4}
-_KEY_SECRET = os.environ.get("LICENSE_SECRET", "scaylr-key-secret-change-in-prod")
+_KEY_SECRET            = os.environ.get("LICENSE_SECRET",        "scaylr-key-secret-change-in-prod")
+_STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+_RESEND_API_KEY        = os.environ.get("RESEND_API_KEY",        "")
+_FROM_EMAIL            = os.environ.get("FROM_EMAIL",            "keys@scaylr.io")
+_APP_URL               = os.environ.get("APP_URL",               "https://scaylr.io")
 
-def _validate_key(key: str) -> bool:
-    """Validate a SCAYLR license key using HMAC without a database."""
+# ── Database ──────────────────────────────────────────────────────────────────
+
+def _db():
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def _db_init():
+    with _db() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS pro_keys (
+                key                    TEXT PRIMARY KEY,
+                email                  TEXT NOT NULL,
+                stripe_customer_id     TEXT,
+                stripe_subscription_id TEXT UNIQUE,
+                status                 TEXT NOT NULL DEFAULT 'active',
+                created_at             TEXT NOT NULL,
+                expires_at             TEXT NOT NULL,
+                renewed_at             TEXT
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_subscription ON pro_keys(stripe_subscription_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_email ON pro_keys(email)")
+        conn.commit()
+    print("[db] tables ready", flush=True)
+
+_db_init()
+
+# ── Key helpers ───────────────────────────────────────────────────────────────
+
+def _generate_key() -> str:
+    uid = secrets.token_hex(2).upper()
+    sig = _hmac.new(_KEY_SECRET.encode(), uid.encode(), hashlib.sha256).hexdigest()[:12].upper()
+    return f"SCAYLR-{uid}-{sig[:4]}-{sig[4:8]}-{sig[8:12]}"
+
+def _hmac_valid(key: str) -> bool:
     try:
         parts = key.upper().strip().split("-")
         if len(parts) != 5 or parts[0] != "SCAYLR":
@@ -44,10 +81,195 @@ def _validate_key(key: str) -> bool:
     except Exception:
         return False
 
+def _validate_key(key: str) -> bool:
+    if not _hmac_valid(key):
+        return False
+    try:
+        with _db() as conn:
+            row = conn.execute(
+                "SELECT status, expires_at FROM pro_keys WHERE key = ?",
+                (key.upper().strip(),)
+            ).fetchone()
+        if not row:
+            return False
+        if row["status"] != "active":
+            return False
+        expires = datetime.fromisoformat(row["expires_at"])
+        return expires > datetime.now(timezone.utc)
+    except Exception:
+        return False
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+def _expires_iso(days: int = 37) -> str:
+    return (datetime.now(timezone.utc) + timedelta(days=days)).isoformat()
+
+# ── Email via Resend ──────────────────────────────────────────────────────────
+
+def _send_key_email(to_email: str, key: str, is_renewal: bool = False) -> bool:
+    if not _RESEND_API_KEY:
+        print(f"[email] RESEND_API_KEY not set — skipping email to {to_email}", flush=True)
+        return False
+
+    subject = "Your Scaylr Pro is renewed" if is_renewal else "Your Scaylr Pro key"
+
+    if is_renewal:
+        body_html = f"""<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;color:#111">
+  <h2 style="font-size:24px;font-weight:800;margin:0 0 8px">Subscription renewed</h2>
+  <p style="color:#555;margin:0 0 28px">Your Scaylr Pro subscription has renewed. Your existing key keeps working — no action needed.</p>
+  <div style="background:#f5f4ff;border:1.5px solid #d4d0fa;border-radius:12px;padding:20px 24px;margin-bottom:28px">
+    <p style="font-size:12px;color:#888;margin:0 0 8px;text-transform:uppercase;letter-spacing:1px">Your license key</p>
+    <p style="font-family:monospace;font-size:20px;font-weight:700;color:#5b4fd4;margin:0;letter-spacing:1px">{key}</p>
+  </div>
+  <p style="color:#555;margin:0 0 24px">This key has been extended for another month.</p>
+  <a href="{_APP_URL}/app" style="display:inline-block;background:#5b4fd4;color:#fff;text-decoration:none;padding:13px 28px;border-radius:10px;font-weight:700;font-size:15px">Open Scaylr</a>
+  <p style="color:#aaa;font-size:12px;margin:28px 0 0">Questions? Reply to this email.</p>
+</div>"""
+    else:
+        body_html = f"""<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;color:#111">
+  <h2 style="font-size:24px;font-weight:800;margin:0 0 8px">Welcome to Scaylr Pro</h2>
+  <p style="color:#555;margin:0 0 28px">Thanks for subscribing. Here's your license key.</p>
+  <div style="background:#f5f4ff;border:1.5px solid #d4d0fa;border-radius:12px;padding:20px 24px;margin-bottom:28px">
+    <p style="font-size:12px;color:#888;margin:0 0 8px;text-transform:uppercase;letter-spacing:1px">Your license key</p>
+    <p style="font-family:monospace;font-size:20px;font-weight:700;color:#5b4fd4;margin:0;letter-spacing:1px">{key}</p>
+  </div>
+  <p style="color:#555;margin:0 0 8px"><strong>How to activate:</strong></p>
+  <ol style="color:#555;margin:0 0 24px;padding-left:20px;line-height:1.8">
+    <li>Go to <a href="{_APP_URL}/app" style="color:#5b4fd4">{_APP_URL}/app</a></li>
+    <li>Click PDF or Fine-tune settings</li>
+    <li>Click "Already have a key?" and paste your key</li>
+  </ol>
+  <a href="{_APP_URL}/app" style="display:inline-block;background:#5b4fd4;color:#fff;text-decoration:none;padding:13px 28px;border-radius:10px;font-weight:700;font-size:15px">Open Scaylr</a>
+  <p style="color:#aaa;font-size:12px;margin:28px 0 0">Your key renews automatically each month. Questions? Reply to this email.</p>
+</div>"""
+
+    try:
+        import requests as _req
+        r = _req.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {_RESEND_API_KEY}", "Content-Type": "application/json"},
+            json={"from": f"Scaylr <{_FROM_EMAIL}>", "to": [to_email],
+                  "subject": subject, "html": body_html},
+            timeout=10,
+        )
+        ok = r.status_code in (200, 201)
+        print(f"[email] {'sent' if ok else 'failed'} to {to_email} ({r.status_code})", flush=True)
+        return ok
+    except Exception as e:
+        print(f"[email] exception: {e}", flush=True)
+        return False
+
+# ── Stripe webhook ────────────────────────────────────────────────────────────
+
+@app.route("/stripe-webhook", methods=["POST"])
+def stripe_webhook():
+    payload    = request.get_data()
+    sig_header = request.headers.get("Stripe-Signature", "")
+
+    if _STRIPE_WEBHOOK_SECRET:
+        try:
+            import stripe as _stripe
+            event = _stripe.Webhook.construct_event(payload, sig_header, _STRIPE_WEBHOOK_SECRET)
+        except Exception as e:
+            print(f"[webhook] sig check failed: {e}", flush=True)
+            return jsonify({"error": "Invalid signature"}), 400
+    else:
+        try:
+            event = json.loads(payload)
+        except Exception:
+            return jsonify({"error": "Bad JSON"}), 400
+
+    event_type = event.get("type", "")
+    obj        = event.get("data", {}).get("object", {})
+    print(f"[webhook] {event_type}", flush=True)
+
+    if event_type == "invoice.paid":
+        sub_id      = obj.get("subscription")
+        customer_id = obj.get("customer")
+        email       = (obj.get("customer_email") or
+                       obj.get("customer_details", {}).get("email") or "")
+        if not sub_id or not email:
+            return jsonify({"ok": True})
+
+        with _db() as conn:
+            existing = conn.execute(
+                "SELECT key FROM pro_keys WHERE stripe_subscription_id=?", (sub_id,)
+            ).fetchone()
+
+            if existing:
+                # Renewal — extend expiry, same key unchanged
+                key = existing["key"]
+                conn.execute(
+                    "UPDATE pro_keys SET status='active', expires_at=?, renewed_at=? WHERE key=?",
+                    (_expires_iso(), _now_iso(), key)
+                )
+                conn.commit()
+                print(f"[webhook] renewed {email}", flush=True)
+                _send_key_email(email, key, is_renewal=True)
+            else:
+                # New subscription
+                key = _generate_key()
+                conn.execute(
+                    """INSERT INTO pro_keys
+                       (key, email, stripe_customer_id, stripe_subscription_id,
+                        status, created_at, expires_at)
+                       VALUES (?, ?, ?, ?, 'active', ?, ?)""",
+                    (key, email.lower(), customer_id, sub_id, _now_iso(), _expires_iso())
+                )
+                conn.commit()
+                print(f"[webhook] new key for {email}", flush=True)
+                _send_key_email(email, key, is_renewal=False)
+
+    elif event_type == "customer.subscription.deleted":
+        sub_id = obj.get("id")
+        if sub_id:
+            with _db() as conn:
+                conn.execute(
+                    "UPDATE pro_keys SET status='revoked' WHERE stripe_subscription_id=?", (sub_id,)
+                )
+                conn.commit()
+            print(f"[webhook] cancelled {sub_id}", flush=True)
+
+    elif event_type in ("invoice.payment_failed", "invoice.payment_action_required"):
+        sub_id = obj.get("subscription")
+        if sub_id:
+            with _db() as conn:
+                conn.execute(
+                    "UPDATE pro_keys SET status='revoked' WHERE stripe_subscription_id=?", (sub_id,)
+                )
+                conn.commit()
+            print(f"[webhook] payment failed {sub_id}", flush=True)
+
+    return jsonify({"ok": True})
+
+# ── Validate key ──────────────────────────────────────────────────────────────
+
+@app.route("/api/validate-key", methods=["POST"])
+def api_validate_key():
+    data = request.get_json(silent=True) or {}
+    key  = str(data.get("key", "")).strip().upper()
+    if not key:
+        return jsonify({"valid": False, "error": "No key provided"}), 400
+    valid = _validate_key(key)
+    if valid:
+        try:
+            with _db() as conn:
+                row = conn.execute(
+                    "SELECT expires_at FROM pro_keys WHERE key=?", (key,)
+                ).fetchone()
+            expires = row["expires_at"] if row else None
+        except Exception:
+            expires = None
+        return jsonify({"valid": True, "plan": "pro", "expires_at": expires})
+    return jsonify({"valid": False, "plan": "free"})
+
+# ── Cache helpers ─────────────────────────────────────────────────────────────
+
 def _get_session_id(req):
     return req.cookies.get("vsid") or uuid.uuid4().hex
 
-def _cache_key(image_bytes, settings):
+def _cache_key_fn(image_bytes, settings):
     h = hashlib.md5(image_bytes).hexdigest()
     s = json.dumps(settings, sort_keys=True)
     return hashlib.md5(f"{h}:{s}".encode()).hexdigest()
@@ -112,9 +334,10 @@ def api_samples():
     if meta_path.exists():
         samples = json.loads(meta_path.read_text())
     else:
-        exts = {".png", ".jpg", ".jpeg", ".webp"}
+        exts  = {".png", ".jpg", ".jpeg", ".webp"}
         files = sorted(f for f in SAMPLES_DIR.iterdir() if f.suffix.lower() in exts)
-        samples = [{"file": f.name, "name": f.stem.replace("-"," ").replace("_"," ").title(), "preset": "illustration"} for f in files]
+        samples = [{"file": f.name, "name": f.stem.replace("-"," ").replace("_"," ").title(),
+                    "preset": "illustration"} for f in files]
     for s in samples:
         s["url"] = f"/static/images/samples/{s['file']}"
     return jsonify(samples)
@@ -126,15 +349,6 @@ def api_sample_image(filename):
     if not p.exists():
         return jsonify({"error": "Not found"}), 404
     return send_file(p)
-
-@app.route("/api/validate-key", methods=["POST"])
-def api_validate_key():
-    data = request.get_json(silent=True) or {}
-    key  = str(data.get("key", "")).strip()
-    if not key:
-        return jsonify({"valid": False, "error": "No key provided"}), 400
-    valid = _validate_key(key)
-    return jsonify({"valid": valid, "plan": "pro" if valid else "free"})
 
 @app.route("/api/vectorize", methods=["POST"])
 @limiter.limit("30 per hour;5 per minute")
@@ -176,8 +390,8 @@ def api_vectorize():
     }
 
     session_id = _get_session_id(request)
-    key        = _cache_key(raw, settings)
-    cached     = _cache_get(session_id, key)
+    ck         = _cache_key_fn(raw, settings)
+    cached     = _cache_get(session_id, ck)
 
     if cached:
         resp = make_response(jsonify({
@@ -222,9 +436,9 @@ def api_vectorize():
             future.cancel()
             return jsonify({"error": "Processing timed out. Try a smaller image or simpler preset."}), 504
 
-    elapsed = round(time.time() - t0, 2)
-    paths   = svg.count("<path")
-    job_id  = uuid.uuid4().hex[:12]
+    elapsed  = round(time.time() - t0, 2)
+    paths    = svg.count("<path")
+    job_id   = uuid.uuid4().hex[:12]
     out_path = OUTPUT_DIR / f"{job_id}.svg"
     out_path.write_text(svg, encoding="utf-8")
 
@@ -232,7 +446,7 @@ def api_vectorize():
     for old in svgs[:-20]:
         old.unlink(missing_ok=True)
 
-    _cache_set(session_id, key, {
+    _cache_set(session_id, ck, {
         "job_id": job_id, "elapsed": elapsed, "paths": paths,
         "svg": svg, "engine_mode": settings["engine_mode"]
     })
@@ -251,20 +465,24 @@ def api_vectorize():
 
 @app.route("/api/download/<job_id>")
 def api_download(job_id):
-    if not job_id.isalnum(): return jsonify({"error": "Bad ID"}), 400
+    if not job_id.isalnum():
+        return jsonify({"error": "Bad ID"}), 400
     p = OUTPUT_DIR / f"{job_id}.svg"
-    if not p.exists(): return jsonify({"error": "Not found"}), 404
-    return send_file(p, mimetype="image/svg+xml", as_attachment=True, download_name=f"vector_{job_id}.svg")
+    if not p.exists():
+        return jsonify({"error": "Not found"}), 404
+    return send_file(p, mimetype="image/svg+xml", as_attachment=True,
+                     download_name=f"vector_{job_id}.svg")
 
 @app.route("/api/download-pdf/<job_id>")
 def api_download_pdf(job_id):
-    if not job_id.isalnum(): return jsonify({"error": "Bad ID"}), 400
-    # Validate Pro key passed as X-License-Key header
+    if not job_id.isalnum():
+        return jsonify({"error": "Bad ID"}), 400
     key = request.headers.get("X-License-Key", "")
     if not _validate_key(key):
         return jsonify({"error": "Pro plan required for PDF export", "upgrade": True}), 403
     p = OUTPUT_DIR / f"{job_id}.svg"
-    if not p.exists(): return jsonify({"error": "Not found"}), 404
+    if not p.exists():
+        return jsonify({"error": "Not found"}), 404
     try:
         import cairosvg
         from io import BytesIO

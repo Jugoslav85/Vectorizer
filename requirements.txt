@@ -5,3 +5,5 @@ pillow
 vtracer==0.6.12
 gunicorn
 cairosvg
+stripe
+requests
