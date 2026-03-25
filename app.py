@@ -1,4 +1,4 @@
-import uuid, time, traceback, hashlib, json, os, hmac as _hmac, sqlite3, secrets
+import uuid, time, traceback, hashlib, json, os, hmac as _hmac, secrets
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from flask import Flask, request, jsonify, send_from_directory, send_file, Response, make_response
@@ -11,7 +11,6 @@ BASE_DIR    = Path(__file__).parent
 OUTPUT_DIR  = BASE_DIR / "outputs"
 STATIC_DIR  = BASE_DIR / "static"
 SAMPLES_DIR = STATIC_DIR / "images" / "samples"
-DB_PATH     = BASE_DIR / "scaylr.db"
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 app = Flask(__name__, static_folder=str(STATIC_DIR))
@@ -31,30 +30,90 @@ _STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 _RESEND_API_KEY        = os.environ.get("RESEND_API_KEY",        "")
 _FROM_EMAIL            = os.environ.get("FROM_EMAIL",            "keys@scaylr.io")
 _APP_URL               = os.environ.get("APP_URL",               "https://scaylr.io")
+_DATABASE_URL          = os.environ.get("DATABASE_URL",          "")
 
-# ── Database ──────────────────────────────────────────────────────────────────
+# ── Database — works with Postgres (Railway) or SQLite (local dev) ─────────────
+
+_USE_POSTGRES = bool(_DATABASE_URL)
+
+if _USE_POSTGRES:
+    import psycopg2
+    import psycopg2.extras
+    print(f"[db] using Postgres", flush=True)
+else:
+    import sqlite3
+    _DB_PATH = str(BASE_DIR / "scaylr.db")
+    print(f"[db] using SQLite at {_DB_PATH}", flush=True)
+
 
 def _db():
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
-    return conn
+    """Return an open DB connection. Caller must use as context manager."""
+    if _USE_POSTGRES:
+        conn = psycopg2.connect(_DATABASE_URL)
+        conn.autocommit = False
+        return conn
+    else:
+        conn = sqlite3.connect(_DB_PATH)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        return conn
+
+
+def _q(sql: str) -> str:
+    """Convert %s placeholders to ? for SQLite."""
+    if _USE_POSTGRES:
+        return sql
+    return sql.replace("%s", "?")
+
+
+def _row_to_dict(row) -> dict:
+    """Normalise a DB row to a plain dict regardless of backend."""
+    if row is None:
+        return None
+    if _USE_POSTGRES:
+        return dict(row)
+    return dict(row)
+
+
+def _fetchone(cursor):
+    row = cursor.fetchone()
+    return _row_to_dict(row)
+
 
 def _db_init():
+    """Create tables — idempotent, safe to call on every startup."""
     with _db() as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS pro_keys (
-                key                    TEXT PRIMARY KEY,
-                email                  TEXT NOT NULL,
-                stripe_customer_id     TEXT,
-                stripe_subscription_id TEXT UNIQUE,
-                status                 TEXT NOT NULL DEFAULT 'active',
-                created_at             TEXT NOT NULL,
-                expires_at             TEXT NOT NULL,
-                renewed_at             TEXT
-            )
-        """)
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_subscription ON pro_keys(stripe_subscription_id)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_email ON pro_keys(email)")
+        cur = conn.cursor()
+        if _USE_POSTGRES:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS pro_keys (
+                    key                    TEXT PRIMARY KEY,
+                    email                  TEXT NOT NULL,
+                    stripe_customer_id     TEXT,
+                    stripe_subscription_id TEXT UNIQUE,
+                    status                 TEXT NOT NULL DEFAULT 'active',
+                    created_at             TEXT NOT NULL,
+                    expires_at             TEXT NOT NULL,
+                    renewed_at             TEXT
+                )
+            """)
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_subscription ON pro_keys(stripe_subscription_id)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_email ON pro_keys(email)")
+        else:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS pro_keys (
+                    key                    TEXT PRIMARY KEY,
+                    email                  TEXT NOT NULL,
+                    stripe_customer_id     TEXT,
+                    stripe_subscription_id TEXT UNIQUE,
+                    status                 TEXT NOT NULL DEFAULT 'active',
+                    created_at             TEXT NOT NULL,
+                    expires_at             TEXT NOT NULL,
+                    renewed_at             TEXT
+                )
+            """)
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_subscription ON pro_keys(stripe_subscription_id)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_email ON pro_keys(email)")
         conn.commit()
     print("[db] tables ready", flush=True)
 
@@ -86,10 +145,12 @@ def _validate_key(key: str) -> bool:
         return False
     try:
         with _db() as conn:
-            row = conn.execute(
-                "SELECT status, expires_at FROM pro_keys WHERE key = ?",
+            cur = conn.cursor()
+            cur.execute(
+                _q("SELECT status, expires_at FROM pro_keys WHERE key = %s"),
                 (key.upper().strip(),)
-            ).fetchone()
+            )
+            row = _fetchone(cur)
         if not row:
             return False
         if row["status"] != "active":
@@ -225,8 +286,9 @@ def stripe_webhook():
         sub_id = obj.get("id")
         if sub_id:
             with _db() as conn:
-                conn.execute(
-                    "UPDATE pro_keys SET status='revoked' WHERE stripe_subscription_id=?", (sub_id,)
+                cur = conn.cursor()
+                cur.execute(
+                    _q("UPDATE pro_keys SET status='revoked' WHERE stripe_subscription_id=%s"), (sub_id,)
                 )
                 conn.commit()
             print(f"[webhook] cancelled {sub_id}", flush=True)
@@ -235,8 +297,9 @@ def stripe_webhook():
         sub_id = obj.get("subscription")
         if sub_id:
             with _db() as conn:
-                conn.execute(
-                    "UPDATE pro_keys SET status='revoked' WHERE stripe_subscription_id=?", (sub_id,)
+                cur = conn.cursor()
+                cur.execute(
+                    _q("UPDATE pro_keys SET status='revoked' WHERE stripe_subscription_id=%s"), (sub_id,)
                 )
                 conn.commit()
             print(f"[webhook] payment failed {sub_id}", flush=True)
@@ -255,9 +318,9 @@ def api_validate_key():
     if valid:
         try:
             with _db() as conn:
-                row = conn.execute(
-                    "SELECT expires_at FROM pro_keys WHERE key=?", (key,)
-                ).fetchone()
+                cur = conn.cursor()
+                cur.execute(_q("SELECT expires_at FROM pro_keys WHERE key=%s"), (key,))
+                row = _fetchone(cur)
             expires = row["expires_at"] if row else None
         except Exception:
             expires = None

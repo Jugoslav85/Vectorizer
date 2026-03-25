@@ -7,3 +7,4 @@ gunicorn
 cairosvg
 stripe
 requests
+psycopg2-binary
