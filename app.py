@@ -559,7 +559,7 @@ def api_vectorize():
             "svg":         cached["svg"],
             "download":    f"/api/download/{cached['job_id']}",
             "cached":      True,
-            "engine_mode": cached.get("engine_mode", "color"),
+            "engine_mode": cached.get("colormode", "color"),
         }))
         resp.set_cookie("vsid", session_id, max_age=86400, samesite="Lax", httponly=True)
         return resp
@@ -606,7 +606,7 @@ def api_vectorize():
 
     _cache_set(session_id, ck, {
         "job_id": job_id, "elapsed": elapsed, "paths": paths,
-        "svg": svg, "engine_mode": settings["engine_mode"]
+        "svg": svg, "colormode": settings["colormode"]
     })
 
     resp = make_response(jsonify({
@@ -616,7 +616,7 @@ def api_vectorize():
         "svg":         svg,
         "download":    f"/api/download/{job_id}",
         "cached":      False,
-        "engine_mode": settings["engine_mode"],
+        "engine_mode": settings["colormode"],
     }))
     resp.set_cookie("vsid", session_id, max_age=86400, samesite="Lax", httponly=True)
     return resp
