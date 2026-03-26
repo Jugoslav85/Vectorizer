@@ -1,13 +1,23 @@
 """
 Vectorizer engine — vtracer backend.
 
-Pre-processing (all individually togglable):
-  resize -> unsharp_mask -> clahe -> edge_contrast -> tonal_separation
-  -> posterize -> vtracer
+Pre-processing (individually togglable):
+  resize
+  -> unsharp_mask       (sharpen fine detail, default on, 100%)
+  -> clahe              (local contrast, photos only, default off)
+  -> lab_shadow_lift    (lift dark detail via LAB L-channel, no colour shift)
+  -> saturation_boost   (separate similar colours for vtracer)
+  -> global_contrast    (uniform contrast lift)
+  -> colour_quantise    (k-means palette reduction, replaces posterize)
+  -> posterize          (channel-based banding, legacy)
+  -> vtracer
 
-Post-processing (all individually togglable):
-  remove_short_paths -> smart_path_retention -> rdp_simplify
-  -> thin_path_stroke -> gap_fill -> group_by_color
+Post-processing (individually togglable):
+  -> smart_path_retention / remove_short_paths
+  -> rdp_simplify
+  -> thin_path_stroke
+  -> gap_fill
+  -> group_by_color
 """
 
 import io
@@ -65,455 +75,366 @@ def _resize(img):
 # Pre-processing: Unsharp Mask
 # ---------------------------------------------------------------------------
 
-def _unsharp_mask(img, radius=1.5, percent=180, threshold=3):
-    """
-    Sharpen fine detail without blurring edges.
-    output = original + (original - blurred) * strength
-    The blur is internal — never reaches vtracer.
-    radius 1-2px targets the detail frequency where eyes and thin lines live.
-    """
-    rgb     = img.convert('RGB')
-    sharpened = rgb.filter(ImageFilter.UnsharpMask(
-        radius=radius, percent=percent, threshold=threshold
-    ))
-    print(f'[engine] unsharp_mask: radius={radius} percent={percent}', flush=True)
+def _unsharp_mask(img, radius=1.0, percent=100, threshold=3):
+    """Sharpen fine detail. The internal blur never reaches vtracer."""
+    rgb = img.convert('RGB').filter(
+        ImageFilter.UnsharpMask(radius=radius, percent=percent, threshold=threshold)
+    )
+    print(f'[engine] unsharp_mask: r={radius} p={percent}', flush=True)
     if img.mode == 'RGBA':
-        out = sharpened.convert('RGBA')
-        out.putalpha(img.getchannel('A'))
-        return out
-    return sharpened
+        out = rgb.convert('RGBA'); out.putalpha(img.getchannel('A')); return out
+    return rgb
 
 
 # ---------------------------------------------------------------------------
-# Pre-processing: CLAHE (local contrast enhancement)
+# Pre-processing: CLAHE (photos only)
 # ---------------------------------------------------------------------------
 
 def _clahe(img, clip_limit=2.0, tile_size=8):
-    """
-    Contrast Limited Adaptive Histogram Equalization.
-    Independently boosts contrast in every local tile — lifts shadow detail
-    (eyes, wrinkles, thin lines in dark regions) without blowing out highlights.
-    Uses OpenCV if available (best quality), falls back to a Pillow tile
-    approximation that's ~80% as effective.
-    clip_limit: max contrast amplification per tile (2-8, higher = more aggressive)
-    tile_size:  local tile grid size (4-16)
-    """
+    """Local contrast enhancement. Photos/portraits only — destroys flat art."""
     rgb = img.convert('RGB')
-
     if _CV2:
         import numpy as _np
         arr  = _np.asarray(rgb)
         lab  = cv2.cvtColor(arr, cv2.COLOR_RGB2LAB)
         l, a, b = cv2.split(lab)
-        clahe_obj = cv2.createCLAHE(clipLimit=clip_limit,
-                                     tileGridSize=(tile_size, tile_size))
-        l_eq = clahe_obj.apply(l)
-        lab_eq = cv2.merge([l_eq, a, b])
-        rgb_eq = cv2.cvtColor(lab_eq, cv2.COLOR_LAB2RGB)
-        result = Image.fromarray(rgb_eq, 'RGB')
-        print(f'[engine] clahe (opencv): clip={clip_limit} tile={tile_size}', flush=True)
-
+        cl   = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(tile_size, tile_size))
+        lab2 = cv2.merge([cl.apply(l), a, b])
+        result = Image.fromarray(cv2.cvtColor(lab2, cv2.COLOR_LAB2RGB), 'RGB')
+        print(f'[engine] clahe (cv2): clip={clip_limit}', flush=True)
     else:
-        # Pillow fallback: equalize each tile independently then blend back
-        w, h    = rgb.size
-        ts      = max(16, min(w, h) // tile_size)
-        result  = rgb.copy()
-        from PIL import ImageDraw
+        w, h   = rgb.size
+        ts     = max(16, min(w, h) // tile_size)
+        result = rgb.copy()
         for y in range(0, h, ts):
             for x in range(0, w, ts):
-                box    = (x, y, min(x+ts, w), min(y+ts, h))
-                tile   = rgb.crop(box)
-                eq     = ImageOps.equalize(tile)
-                # Blend: 60% equalized, 40% original — avoids over-amplification
-                blended = Image.blend(tile, eq, alpha=0.6)
-                result.paste(blended, box)
-        print(f'[engine] clahe (pillow fallback): tile_size={ts}', flush=True)
-
+                box = (x, y, min(x+ts, w), min(y+ts, h))
+                tile = rgb.crop(box)
+                result.paste(Image.blend(tile, ImageOps.equalize(tile), 0.6), box)
+        print(f'[engine] clahe (pillow): tile={ts}', flush=True)
     if img.mode == 'RGBA':
-        out = result.convert('RGBA')
-        out.putalpha(img.getchannel('A'))
-        return out
+        out = result.convert('RGBA'); out.putalpha(img.getchannel('A')); return out
     return result
 
 
 # ---------------------------------------------------------------------------
-# Pre-processing: Edge-aware local contrast boost
+# Pre-processing: LAB Shadow Lift
 # ---------------------------------------------------------------------------
 
-def _edge_contrast(img, boost=1.8, dilation=3):
+def _lab_shadow_lift(img, strength=0.4, shadow_end=100):
     """
-    Detect edges, dilate the mask, then apply strong contrast boost only near
-    edges. Flat colour regions stay accurate. Boundary regions get pushed apart
-    so vtracer sees a clear divide instead of a gradual transition.
-    boost: contrast multiplier applied near edges (1.2 - 3.0)
-    dilation: how many pixels around each edge get boosted
+    Lift dark detail via the LAB L-channel only.
+    Colours (A and B channels) are never touched — zero colour shift.
+    strength: how much to brighten shadows (0.1–0.8)
+    shadow_end: L values below this are lifted (0–180 in LAB space)
     """
-    rgb  = img.convert('RGB')
-    gray = rgb.convert('L')
+    if not _NUMPY:
+        # Pillow fallback: curves on luminance only
+        gray  = img.convert('L')
+        lut   = []
+        for i in range(256):
+            if i < shadow_end:
+                v = int(i + (shadow_end - i) * strength)
+            else:
+                v = i
+            lut.append(min(255, v))
+        rgb = img.convert('RGB')
+        r, g, b = rgb.split()
+        # Apply only to luminance-equivalent — approximate via each channel
+        # Better than nothing but not colour-accurate
+        lifted = Image.merge('RGB', (r.point(lut), g.point(lut), b.point(lut)))
+        print(f'[engine] lab_shadow_lift (pillow approx): str={strength}', flush=True)
+        if img.mode == 'RGBA':
+            out = lifted.convert('RGBA'); out.putalpha(img.getchannel('A')); return out
+        return lifted
 
-    # Detect edges
-    edges = gray.filter(ImageFilter.FIND_EDGES)
-    # Threshold to binary mask
-    edges = edges.point(lambda p: 255 if p > 20 else 0)
-    # Dilate to cover stroke width
-    for _ in range(dilation):
-        edges = edges.filter(ImageFilter.MaxFilter(3))
+    arr  = np.asarray(img.convert('RGB'), dtype=np.float32) / 255.0
+    # Convert to LAB
+    # Simple sRGB -> XYZ -> LAB (D65)
+    def srgb_to_linear(c):
+        return np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
 
-    # Apply contrast boost to the entire image
-    boosted = ImageEnhance.Contrast(rgb).enhance(boost)
+    def linear_to_lab(rgb_lin):
+        M = np.array([[0.4124564,0.3575761,0.1804375],
+                      [0.2126729,0.7151522,0.0721750],
+                      [0.0193339,0.1191920,0.9503041]])
+        xyz = rgb_lin @ M.T
+        xyz /= np.array([0.95047, 1.0, 1.08883])
+        e = 0.008856
+        xyz = np.where(xyz > e, xyz ** (1/3), 7.787 * xyz + 16/116)
+        L = 116 * xyz[..., 1] - 16
+        A = 500 * (xyz[..., 0] - xyz[..., 1])
+        B = 200 * (xyz[..., 1] - xyz[..., 2])
+        return L, A, B
 
-    # Composite: use boosted near edges, original elsewhere
-    edge_rgb = edges.convert('RGB')
-    mask     = edges  # L mode mask
-    result   = Image.composite(boosted, rgb, mask)
+    def lab_to_linear(L, A, B):
+        fy = (L + 16) / 116
+        fx = A / 500 + fy
+        fz = fy - B / 200
+        e  = 0.008856
+        x  = np.where(fx**3 > e, fx**3, (fx - 16/116) / 7.787)
+        y  = np.where(fy**3 > e, fy**3, (fy - 16/116) / 7.787)
+        z  = np.where(fz**3 > e, fz**3, (fz - 16/116) / 7.787)
+        xyz = np.stack([x, y, z], axis=-1) * np.array([0.95047, 1.0, 1.08883])
+        M_inv = np.array([[ 3.2404542,-1.5371385,-0.4985314],
+                          [-0.9692660, 1.8760108, 0.0415560],
+                          [ 0.0556434,-0.2040259, 1.0572252]])
+        return np.clip(xyz @ M_inv.T, 0, None)
 
-    print(f'[engine] edge_contrast: boost={boost} dilation={dilation}', flush=True)
+    def linear_to_srgb(c):
+        return np.where(c <= 0.0031308, 12.92*c, 1.055*c**(1/2.4) - 0.055)
+
+    lin  = srgb_to_linear(arr)
+    L, A, B = linear_to_lab(lin)
+
+    # Lift L values below shadow_end
+    lab_shadow = shadow_end / 100 * 100  # map to LAB L scale (0-100)
+    mask = L < lab_shadow
+    L    = np.where(mask, L + (lab_shadow - L) * strength, L)
+
+    lin2   = lab_to_linear(L, A, B)
+    result = np.clip(linear_to_srgb(lin2), 0, 1)
+    out    = Image.fromarray((result * 255).astype(np.uint8), 'RGB')
+    print(f'[engine] lab_shadow_lift: str={strength} shadow_end={shadow_end}', flush=True)
     if img.mode == 'RGBA':
-        out = result.convert('RGBA')
-        out.putalpha(img.getchannel('A'))
-        return out
-    return result
+        out2 = out.convert('RGBA'); out2.putalpha(img.getchannel('A')); return out2
+    return out
 
 
 # ---------------------------------------------------------------------------
-# Pre-processing: Tonal separation (shadow range stretch)
+# Pre-processing: Saturation Boost
 # ---------------------------------------------------------------------------
 
-def _tonal_separation(img, shadow_end=80, shadow_out=160):
+def _saturation_boost(img, factor=1.3):
     """
-    Stretch the shadow tonal range so dark details become visible.
-    Pixels 0-shadow_end get remapped to 0-shadow_out (expanded).
-    Everything above shadow_end is compressed proportionally.
-    Specifically helps: eyes on dark faces, dark lines on dark backgrounds,
-    shadow detail in illustrations.
-    shadow_end:  input value below which shadows are stretched (50-120)
-    shadow_out:  output value the shadow_end maps to (100-200)
+    Boost saturation before tracing — makes similar colours more distinct
+    so vtracer creates separate layers for regions that would otherwise merge.
+    factor: 1.0 = no change, 1.2-1.5 = mild, 2.0 = strong
     """
-    rgb = img.convert('RGB')
-
-    # Build a piecewise LUT: stretch shadows, compress highlights
-    lut = []
-    for i in range(256):
-        if i <= shadow_end:
-            # Shadow zone: linear stretch to shadow_out
-            v = int(i * shadow_out / shadow_end)
-        else:
-            # Highlight zone: compress remaining range into shadow_out..255
-            ratio = (i - shadow_end) / (255 - shadow_end)
-            v     = int(shadow_out + ratio * (255 - shadow_out))
-        lut.append(min(255, max(0, v)))
-
-    # Apply LUT to each channel
-    r, g, b = rgb.split()
-    r = r.point(lut)
-    g = g.point(lut)
-    b = b.point(lut)
-    result = Image.merge('RGB', (r, g, b))
-
-    print(f'[engine] tonal_separation: shadow_end={shadow_end} shadow_out={shadow_out}', flush=True)
+    rgb    = img.convert('RGB')
+    result = ImageEnhance.Color(rgb).enhance(factor)
+    print(f'[engine] saturation_boost: {factor}x', flush=True)
     if img.mode == 'RGBA':
-        out = result.convert('RGBA')
-        out.putalpha(img.getchannel('A'))
-        return out
+        out = result.convert('RGBA'); out.putalpha(img.getchannel('A')); return out
     return result
 
 
 # ---------------------------------------------------------------------------
-# Post-processing: Smart path retention
+# Pre-processing: Global Contrast
 # ---------------------------------------------------------------------------
 
-def _smart_path_retention(svg, proximity_px=8.0):
+def _global_contrast(img, factor=1.2):
     """
-    Context-aware path removal: keep small paths that are near other paths
-    of the same colour (they're probably part of a detail cluster — an eye,
-    a textured region), discard small paths that are isolated (probably noise).
-
-    Replaces the blunt _remove_short_paths for better detail preservation.
-    proximity_px: if a tiny path has a same-colour neighbour within this many
-                  pixels, keep it. Otherwise remove it.
+    Uniform contrast boost. Preserves relative colour relationships — a region
+    that's 20% darker than its neighbour stays 20% darker. Helps vtracer
+    separate layers that are too similar without shifting hues.
+    factor: 1.0 = no change, 1.1-1.4 = mild to strong
     """
-    # Parse all paths with their fill and bounding box
-    path_re  = re.compile(r'<path\b[^>]*d="([^"]+)"[^/]*/?>|<path\b[^>]*d="([^"]+)"[^>]*>[^<]*</path>')
-    fill_re  = re.compile(r'fill="(#[0-9a-fA-F]{3,6})"')
-    num_re   = re.compile(r'[-+]?[0-9]*\.?[0-9]+')
-
-    def bbox(d):
-        nums = [float(x) for x in num_re.findall(d)]
-        if len(nums) < 4:
-            return None
-        xs, ys = nums[0::2], nums[1::2]
-        return (min(xs), min(ys), max(xs), max(ys))
-
-    def centre(bb):
-        return ((bb[0]+bb[2])/2, (bb[1]+bb[3])/2)
-
-    def size(bb):
-        return (bb[2]-bb[0]), (bb[3]-bb[1])
-
-    paths = []
-    for m in re.finditer(r'<path\b[^>]*/?>|<path\b[^>]*>.*?</path>', svg, re.DOTALL):
-        el   = m.group(0)
-        d_m  = re.search(r'd="([^"]+)"', el)
-        f_m  = fill_re.search(el)
-        if not d_m:
-            continue
-        bb = bbox(d_m.group(1))
-        if bb is None:
-            continue
-        w, h  = size(bb)
-        paths.append({
-            'el':    el,
-            'fill':  f_m.group(1).lower() if f_m else None,
-            'bb':    bb,
-            'cx':    centre(bb)[0],
-            'cy':    centre(bb)[1],
-            'tiny':  w < proximity_px and h < proximity_px,
-        })
-
-    if not paths:
-        return svg
-
-    # For each tiny path, check if same-colour neighbour exists nearby
-    keep_set = set()
-    for i, p in enumerate(paths):
-        if not p['tiny']:
-            keep_set.add(i)
-            continue
-        # Check proximity to any non-tiny path of same colour
-        survived = False
-        for j, q in enumerate(paths):
-            if i == j:
-                continue
-            if q['fill'] != p['fill']:
-                continue
-            dist = math.hypot(p['cx'] - q['cx'], p['cy'] - q['cy'])
-            if dist <= proximity_px * 3:
-                survived = True
-                break
-        if survived:
-            keep_set.add(i)
-
-    removed = len(paths) - len(keep_set)
-    if removed == 0:
-        return svg
-
-    # Rebuild SVG replacing each path el
-    path_iter = iter(paths)
-    idx       = [0]
-
-    def replace_path(m):
-        p = paths[idx[0]]
-        idx[0] += 1
-        return p['el'] if idx[0]-1 in keep_set else ''
-
-    result = re.sub(
-        r'<path\b[^>]*/?>|<path\b[^>]*>.*?</path>',
-        replace_path, svg, flags=re.DOTALL
-    )
-    print(f'[engine] smart_path_retention: kept {len(keep_set)}/{len(paths)} paths (removed {removed} isolated tiny)', flush=True)
+    rgb    = img.convert('RGB')
+    result = ImageEnhance.Contrast(rgb).enhance(factor)
+    print(f'[engine] global_contrast: {factor}x', flush=True)
+    if img.mode == 'RGBA':
+        out = result.convert('RGBA'); out.putalpha(img.getchannel('A')); return out
     return result
 
 
 # ---------------------------------------------------------------------------
-# Post-processing: Thin path stroke
+# Pre-processing: Colour Quantise
 # ---------------------------------------------------------------------------
 
-def _thin_path_stroke(svg, max_size=6.0, stroke_width=0.5):
+def _colour_quantise(img, n_colors=32):
     """
-    Add a thin stroke to paths with a small bounding box that survived
-    filter_speckle. These are probably fine lines (hair strands, thin outlines)
-    that would disappear at certain zoom levels due to sub-pixel rendering.
-    A 0.5px same-colour stroke fills the rendering gap without changing appearance.
+    K-means style palette reduction via Pillow median-cut.
+    Each colour is a genuine cluster from the image — no channel banding.
+    Cleaner than posterize for illustrations and photos alike.
     """
-    fill_re = re.compile(r'fill="(#[0-9a-fA-F]{3,6})"')
-    num_re  = re.compile(r'[-+]?[0-9]*\.?[0-9]+')
-
-    def is_thin(el):
-        d_m = re.search(r'd="([^"]+)"', el)
-        if not d_m:
-            return False
-        nums = [float(x) for x in num_re.findall(d_m.group(1))]
-        if len(nums) < 4:
-            return False
-        xs, ys = nums[0::2], nums[1::2]
-        w = max(xs) - min(xs)
-        h = max(ys) - min(ys)
-        return w < max_size or h < max_size
-
-    def add_stroke(m):
-        el  = m.group(0)
-        if not is_thin(el):
-            return el
-        fm  = fill_re.search(el)
-        if not fm:
-            return el
-        color = fm.group(1)
-        # Inject stroke attrs before the closing />
-        el = el.rstrip('/>').rstrip()
-        el += f' stroke="{color}" stroke-width="{stroke_width}"/>'
-        return el
-
-    result = re.sub(
-        r'<path\b[^>]*/?>',
-        add_stroke, svg
-    )
-    print(f'[engine] thin_path_stroke: applied to thin paths (max_size={max_size}px)', flush=True)
+    rgb      = img.convert('RGB')
+    q        = rgb.quantize(colors=n_colors, method=Image.Quantize.MEDIANCUT, dither=0)
+    result   = q.convert('RGB')
+    print(f'[engine] colour_quantise: {n_colors} colours', flush=True)
+    if img.mode == 'RGBA':
+        out = result.convert('RGBA'); out.putalpha(img.getchannel('A')); return out
     return result
 
 
 # ---------------------------------------------------------------------------
-# Post-processing: Short path removal (fallback when smart retention off)
+# Post-processing helpers
 # ---------------------------------------------------------------------------
 
 def _remove_short_paths(svg, min_size=2.0):
     def is_tiny(d):
         nums = re.findall(r'[-+]?[0-9]*\.?[0-9]+', d)
-        if len(nums) < 4:
-            return True
+        if len(nums) < 4: return True
         coords = [float(n) for n in nums]
         xs, ys = coords[0::2], coords[1::2]
         return (max(xs)-min(xs)) < min_size and (max(ys)-min(ys)) < min_size
-    return re.sub(
-        r'<path[^>]*d="([^"]+)"[^/]*/?>',
-        lambda m: '' if is_tiny(m.group(1)) else m.group(0),
-        svg,
-    )
+    return re.sub(r'<path[^>]*d="([^"]+)"[^/]*/?>',
+                  lambda m: '' if is_tiny(m.group(1)) else m.group(0), svg)
 
 
-# ---------------------------------------------------------------------------
-# Post-processing: RDP simplification
-# ---------------------------------------------------------------------------
+def _smart_path_retention(svg, proximity_px=8.0):
+    """Keep tiny paths near same-colour neighbours; discard isolated noise."""
+    fill_re = re.compile(r'fill="(#[0-9a-fA-F]{3,6})"')
+    num_re  = re.compile(r'[-+]?[0-9]*\.?[0-9]+')
+
+    def bbox(d):
+        nums = [float(x) for x in num_re.findall(d)]
+        if len(nums) < 4: return None
+        xs, ys = nums[0::2], nums[1::2]
+        return min(xs), min(ys), max(xs), max(ys)
+
+    paths = []
+    for m in re.finditer(r'<path\b[^>]*/?>|<path\b[^>]*>.*?</path>', svg, re.DOTALL):
+        el  = m.group(0)
+        dm  = re.search(r'd="([^"]+)"', el)
+        fm  = fill_re.search(el)
+        if not dm: continue
+        bb = bbox(dm.group(1))
+        if bb is None: continue
+        w, h = bb[2]-bb[0], bb[3]-bb[1]
+        paths.append({
+            'el': el, 'fill': fm.group(1).lower() if fm else None,
+            'cx': (bb[0]+bb[2])/2, 'cy': (bb[1]+bb[3])/2,
+            'tiny': w < proximity_px and h < proximity_px,
+        })
+
+    keep = set()
+    for i, p in enumerate(paths):
+        if not p['tiny']:
+            keep.add(i); continue
+        for j, q in enumerate(paths):
+            if i == j: continue
+            if q['fill'] != p['fill']: continue
+            if math.hypot(p['cx']-q['cx'], p['cy']-q['cy']) <= proximity_px*3:
+                keep.add(i); break
+
+    if len(keep) == len(paths):
+        return svg
+
+    idx = [0]
+    def repl(m):
+        k = idx[0]; idx[0] += 1
+        return paths[k]['el'] if k in keep else ''
+    result = re.sub(r'<path\b[^>]*/?>|<path\b[^>]*>.*?</path>', repl, svg, flags=re.DOTALL)
+    print(f'[engine] smart_path_retention: kept {len(keep)}/{len(paths)}', flush=True)
+    return result
+
 
 def _rdp_dist(p, a, b):
-    if a == b:
-        return math.hypot(p[0]-a[0], p[1]-a[1])
+    if a == b: return math.hypot(p[0]-a[0], p[1]-a[1])
     dx, dy = b[0]-a[0], b[1]-a[1]
-    return abs(dy*p[0] - dx*p[1] + b[0]*a[1] - b[1]*a[0]) / math.hypot(dx, dy)
-
+    return abs(dy*p[0]-dx*p[1]+b[0]*a[1]-b[1]*a[0]) / math.hypot(dx, dy)
 
 def _rdp(pts, eps):
-    if len(pts) < 3:
-        return pts
+    if len(pts) < 3: return pts
     d, idx = max((_rdp_dist(pts[i], pts[0], pts[-1]), i) for i in range(1, len(pts)-1))
-    if d > eps:
-        return _rdp(pts[:idx+1], eps)[:-1] + _rdp(pts[idx:], eps)
+    if d > eps: return _rdp(pts[:idx+1], eps)[:-1] + _rdp(pts[idx:], eps)
     return [pts[0], pts[-1]]
-
 
 def _simplify_svg_paths(svg, epsilon=0.1):
     def simplify_path(d):
-        tokens = re.findall(
-            r'[MmLlCcSsQqZz]|[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?', d)
+        tokens = re.findall(r'[MmLlCcSsQqZz]|[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?', d)
         result, line_pts = [], []
-
         def flush():
             nonlocal line_pts
             if len(line_pts) >= 2:
                 s = _rdp(line_pts, epsilon)
                 if s:
                     result.append('L')
-                    for pt in s[1:]:
-                        result.append(f'{pt[0]:.2f},{pt[1]:.2f}')
+                    for pt in s[1:]: result.append(f'{pt[0]:.2f},{pt[1]:.2f}')
             line_pts = []
-
         i = 0
         while i < len(tokens):
             t = tokens[i]
-            if t in ('M', 'm'):
+            if t in ('M','m'):
                 flush(); result.append(t); i += 1
                 if i+1 < len(tokens):
-                    x, y = float(tokens[i]), float(tokens[i+1])
-                    result.append(f'{x:.2f},{y:.2f}')
-                    line_pts = [(x, y)]; i += 2
+                    x,y = float(tokens[i]), float(tokens[i+1])
+                    result.append(f'{x:.2f},{y:.2f}'); line_pts=[(x,y)]; i+=2
             elif t == 'L':
                 i += 1
-                while i+1 < len(tokens) and tokens[i] not in 'MmLlCcSsQqZz':
-                    line_pts.append((float(tokens[i]), float(tokens[i+1]))); i += 2
+                while i+1<len(tokens) and tokens[i] not in 'MmLlCcSsQqZz':
+                    line_pts.append((float(tokens[i]),float(tokens[i+1]))); i+=2
             elif t in ('C','c','S','s','Q','q'):
-                flush(); result.append(t); i += 1
-                while i < len(tokens) and tokens[i] not in 'MmLlCcSsQqZz':
-                    result.append(tokens[i]); i += 1
+                flush(); result.append(t); i+=1
+                while i<len(tokens) and tokens[i] not in 'MmLlCcSsQqZz':
+                    result.append(tokens[i]); i+=1
             elif t in ('Z','z'):
-                flush(); result.append(t); i += 1
+                flush(); result.append(t); i+=1
             else:
-                result.append(t); i += 1
+                result.append(t); i+=1
         flush()
         return ' '.join(result)
-
     return re.sub(r'd="([^"]+)"', lambda m: f'd="{simplify_path(m.group(1))}"', svg)
 
 
-# ---------------------------------------------------------------------------
-# Post-processing: Gap filler
-# ---------------------------------------------------------------------------
+def _thin_path_stroke(svg, max_size=6.0, stroke_width=0.5):
+    """Add hairline stroke to thin paths so they stay visible at all zoom levels."""
+    fill_re = re.compile(r'fill="(#[0-9a-fA-F]{3,6})"')
+    num_re  = re.compile(r'[-+]?[0-9]*\.?[0-9]+')
+    def add_stroke(m):
+        el = m.group(0)
+        dm = re.search(r'd="([^"]+)"', el)
+        if not dm: return el
+        nums = [float(x) for x in num_re.findall(dm.group(1))]
+        if len(nums) < 4: return el
+        xs,ys = nums[0::2], nums[1::2]
+        if (max(xs)-min(xs)) >= max_size and (max(ys)-min(ys)) >= max_size:
+            return el
+        fm = fill_re.search(el)
+        if not fm: return el
+        el = el.rstrip('/>').rstrip()
+        el += f' stroke="{fm.group(1)}" stroke-width="{stroke_width}"/>'
+        return el
+    return re.sub(r'<path\b[^>]*/?>',  add_stroke, svg)
+
 
 def _gap_filler(svg, stroke_width=1.5):
     stroke_paths = []
-    fill_re      = re.compile(r'fill="(#[0-9a-fA-F]{3,6})"')
+    fill_re = re.compile(r'fill="(#[0-9a-fA-F]{3,6})"')
     for m in re.finditer(r'<path\b[^>]*/?>|<path\b[^>]*>.*?</path>', svg, re.DOTALL):
-        el = m.group(0)
-        fm = fill_re.search(el)
-        if not fm:
-            continue
-        color   = fm.group(1)
+        el = m.group(0); fm = fill_re.search(el)
+        if not fm: continue
+        color = fm.group(1)
         stroked = fill_re.sub(
             f'fill="none" stroke="{color}" stroke-width="{stroke_width}" '
-            f'stroke-linejoin="round" stroke-linecap="round"',
-            el, count=1,
-        )
+            f'stroke-linejoin="round" stroke-linecap="round"', el, count=1)
         stroke_paths.append('    ' + stroked.strip())
-    if not stroke_paths:
-        return svg
+    if not stroke_paths: return svg
     layer = '  <g id="gap-filler">\n' + '\n'.join(stroke_paths) + '\n  </g>'
     m = re.search(r'<svg[^>]+>', svg)
-    if not m:
-        return svg
+    if not m: return svg
     svg = svg[:m.end()] + '\n' + layer + svg[m.end():]
-    print(f'[engine] gap_filler: {len(stroke_paths)} stroke paths', flush=True)
+    print(f'[engine] gap_filler: {len(stroke_paths)} paths', flush=True)
     return svg
 
 
-# ---------------------------------------------------------------------------
-# Post-processing: Group by colour
-# ---------------------------------------------------------------------------
-
 def _group_by_color(svg):
     m = re.search(r'(<svg[^>]+>)', svg)
-    if not m:
-        return svg
+    if not m: return svg
     svg_open  = m.group(1)
-    elements  = re.findall(
-        r'(<rect\b[^>]*/?>|<path\b[^>]*/?>|<path\b[^>]*>.*?</path>)',
-        svg, re.DOTALL,
-    )
-    if not elements:
-        return svg
-    fill_re        = re.compile(r'\s*fill="(#[0-9a-fA-F]{3,6})"')
-    background     = []
-    paths_by_color = {}
-    color_order    = []
+    elements  = re.findall(r'(<rect\b[^>]*/?>|<path\b[^>]*/?>|<path\b[^>]*>.*?</path>)', svg, re.DOTALL)
+    if not elements: return svg
+    fill_re = re.compile(r'\s*fill="(#[0-9a-fA-F]{3,6})"')
+    bg, by_color, order = [], {}, []
     for el in elements:
-        if el.strip().startswith('<rect'):
-            background.append(el); continue
+        if el.strip().startswith('<rect'): bg.append(el); continue
         fm    = fill_re.search(el)
         color = ('#' + fm.group(1).lstrip('#').lower()) if fm else '__none__'
         clean = fill_re.sub('', el, count=1)
-        if color not in paths_by_color:
-            paths_by_color[color] = []; color_order.append(color)
-        paths_by_color[color].append(clean)
+        if color not in by_color: by_color[color]=[]; order.append(color)
+        by_color[color].append(clean)
     lines = [svg_open]
-    for el in background:
-        lines.append('  ' + el)
-    for color in color_order:
+    for el in bg: lines.append('  '+el)
+    for color in order:
         if color == '__none__':
-            for p in paths_by_color[color]: lines.append('  ' + p.strip())
+            for p in by_color[color]: lines.append('  '+p.strip())
         else:
             lines.append(f'  <g fill="{color}">')
-            for p in paths_by_color[color]: lines.append('    ' + p.strip())
+            for p in by_color[color]: lines.append('    '+p.strip())
             lines.append('  </g>')
     lines.append('</svg>')
-    n = len([c for c in color_order if c != '__none__'])
-    print(f'[engine] group_by_color: {n} groups, {len(elements)} paths', flush=True)
+    print(f'[engine] group_by_color: {len([c for c in order if c!="__none__"])} groups', flush=True)
     return '\n'.join(lines)
 
 
@@ -523,31 +444,34 @@ def _group_by_color(svg):
 
 def vectorize(
     image_data,
+    colormode              = 'color',
 
-    # Mode
-    colormode              = 'color',   # 'color' or 'bw'
+    # Pre-processing
+    unsharp_mask           = True,
+    unsharp_radius         = 1.0,
+    unsharp_percent        = 100,
+    unsharp_threshold      = 3,
 
-    # ── Pre-processing toggles ────────────────────────────────────────────
-    unsharp_mask           = True,      # sharpen fine detail before tracing
-    unsharp_radius         = 1.5,       # px — targets detail frequency
-    unsharp_percent        = 180,       # strength %
-    unsharp_threshold      = 3,         # edge detection threshold
+    clahe                  = False,
+    clahe_clip             = 2.0,
+    clahe_tile             = 8,
 
-    clahe                  = True,      # local contrast enhancement
-    clahe_clip             = 2.0,       # amplification limit per tile
-    clahe_tile             = 8,         # tile grid size
+    lab_shadow_lift        = False,
+    lab_shadow_strength    = 0.4,
+    lab_shadow_end         = 100,
 
-    edge_contrast          = True,      # boost contrast near detected edges
-    edge_contrast_boost    = 1.8,       # multiplier (1.2–3.0)
-    edge_contrast_dilation = 3,         # px around each edge to boost
+    saturation_boost       = False,
+    saturation_factor      = 1.3,
 
-    tonal_separation       = False,     # stretch shadow range (dark detail)
-    tonal_shadow_end       = 80,        # input shadow cutoff (0–150)
-    tonal_shadow_out       = 160,       # output value shadow_end maps to
+    global_contrast        = False,
+    global_contrast_factor = 1.2,
 
-    posterize_bits         = 0,         # 0 = off, 2–6 = reduce colours
+    colour_quantise        = False,
+    colour_quantise_n      = 32,
 
-    # ── vtracer params (all at vtracer defaults) ──────────────────────────
+    posterize_bits         = 0,
+
+    # vtracer
     filter_speckle         = 4,
     color_precision        = 6,
     layer_difference       = 16,
@@ -555,17 +479,14 @@ def vectorize(
     length_threshold       = 4.0,
     splice_threshold       = 45,
 
-    # ── Post-processing toggles ───────────────────────────────────────────
-    smart_path_retention   = True,      # keep small paths near same-colour neighbours
-    smart_proximity        = 8.0,       # px proximity for retention decision
-
-    simplify_epsilon       = 0.1,       # RDP path simplification tolerance
-
-    thin_path_stroke       = True,      # add hairline stroke to thin surviving paths
-    thin_path_max_size     = 6.0,       # px — paths narrower than this get a stroke
-    thin_stroke_width      = 0.5,       # stroke width in px
-
-    gap_fill               = True,      # white-line artifact fix
+    # Post-processing
+    smart_path_retention   = True,
+    smart_proximity        = 8.0,
+    simplify_epsilon       = 0.1,
+    thin_path_stroke       = True,
+    thin_path_max_size     = 6.0,
+    thin_stroke_width      = 0.5,
+    gap_fill               = True,
 ):
     img = Image.open(io.BytesIO(image_data)).convert('RGBA')
     img = _resize(img)
@@ -574,17 +495,16 @@ def vectorize(
     if unsharp_mask:
         img = _unsharp_mask(img, radius=unsharp_radius,
                             percent=unsharp_percent, threshold=unsharp_threshold)
-
     if clahe:
         img = _clahe(img, clip_limit=clahe_clip, tile_size=clahe_tile)
-
-    if edge_contrast:
-        img = _edge_contrast(img, boost=edge_contrast_boost,
-                             dilation=edge_contrast_dilation)
-
-    if tonal_separation:
-        img = _tonal_separation(img, shadow_end=tonal_shadow_end,
-                                shadow_out=tonal_shadow_out)
+    if lab_shadow_lift:
+        img = _lab_shadow_lift(img, strength=lab_shadow_strength, shadow_end=lab_shadow_end)
+    if saturation_boost:
+        img = _saturation_boost(img, factor=saturation_factor)
+    if global_contrast:
+        img = _global_contrast(img, factor=global_contrast_factor)
+    if colour_quantise:
+        img = _colour_quantise(img, n_colors=colour_quantise_n)
 
     rgb = img.convert('RGB')
     if posterize_bits >= 2:
@@ -592,9 +512,7 @@ def vectorize(
         print(f'[engine] posterize: {posterize_bits} bits', flush=True)
 
     if img.mode == 'RGBA':
-        out = rgb.convert('RGBA')
-        out.putalpha(img.getchannel('A'))
-        processed = out
+        out = rgb.convert('RGBA'); out.putalpha(img.getchannel('A')); processed = out
     else:
         processed = rgb
 
@@ -602,25 +520,18 @@ def vectorize(
     inp = vtr_out = None
     try:
         with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
-            processed.save(f.name, format='PNG')
-            inp = f.name
+            processed.save(f.name, format='PNG'); inp = f.name
         vtr_out = inp.replace('.png', '.svg')
         print(f'[engine] vtracer: colormode={colormode} fs={filter_speckle} '
               f'cp={color_precision} ld={layer_difference} ct={corner_threshold} '
               f'lt={length_threshold} st={splice_threshold}', flush=True)
         vtracer.convert_image_to_svg_py(
             inp, vtr_out,
-            colormode        = colormode,
-            hierarchical     = 'stacked',
-            mode             = 'spline',
-            filter_speckle   = filter_speckle,
-            color_precision  = color_precision,
-            layer_difference = layer_difference,
-            corner_threshold = corner_threshold,
-            length_threshold = length_threshold,
-            max_iterations   = 10,
-            splice_threshold = splice_threshold,
-            path_precision   = 8,
+            colormode=colormode, hierarchical='stacked', mode='spline',
+            filter_speckle=filter_speckle, color_precision=color_precision,
+            layer_difference=layer_difference, corner_threshold=corner_threshold,
+            length_threshold=length_threshold, max_iterations=10,
+            splice_threshold=splice_threshold, path_precision=8,
         )
         svg = open(vtr_out, encoding='utf-8').read()
         print(f'[engine] {svg.count("<path")} paths from vtracer', flush=True)
@@ -637,16 +548,13 @@ def vectorize(
         if thin_path_stroke:
             svg = _thin_path_stroke(svg, max_size=thin_path_max_size,
                                     stroke_width=thin_stroke_width)
-
         if gap_fill and colormode == 'color':
             svg = _gap_filler(svg)
-
         if colormode == 'color':
             svg = _group_by_color(svg)
 
         print(f'[engine] {svg.count("<path")} paths after post-processing', flush=True)
         return svg
-
     finally:
-        if inp and os.path.exists(inp):     os.unlink(inp)
+        if inp and os.path.exists(inp): os.unlink(inp)
         if vtr_out and os.path.exists(vtr_out): os.unlink(vtr_out)
