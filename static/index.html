@@ -240,6 +240,24 @@ input[type=range]{width:100%;accent-color:var(--accent);height:6px;cursor:pointe
   padding:9px;cursor:pointer;transition:all .15s;text-align:center;
 }
 .btn-new:hover{color:var(--text);border-color:var(--border2);}
+.btn-outline{
+  grid-column:1/-1;
+  background:transparent;color:var(--muted);
+  border:1px solid var(--border);border-radius:8px;
+  font-size:13px;font-family:var(--font-ui);font-weight:600;
+  padding:9px;cursor:pointer;transition:all .15s;text-align:center;
+}
+.btn-outline:hover{color:var(--text);border-color:var(--border2);}
+
+/* ── Toggle switch ── */
+#gap-fill-track{background:var(--border2);}
+#gap-fill:checked + #gap-fill-track{background:var(--accent);}
+#gap-fill-track::after{
+  content:'';position:absolute;left:3px;top:3px;
+  width:16px;height:16px;border-radius:50%;
+  background:#fff;transition:.2s;
+}
+#gap-fill:checked + #gap-fill-track::after{transform:translateX(18px);}
 
 /* ── Main area ── */
 main{
@@ -1255,9 +1273,25 @@ body { padding-top: 52px; }
       <div class="sec-label" style="margin-top:16px;">Post-processing</div>
 
       <div class="field">
-        <div class="field-row"><label>Path simplify</label><span class="field-val" id="v-se">0.3</span></div>
-        <div class="field-desc">Removes redundant path points on straight segments. Higher = fewer points, smoother output.</div>
-        <input type="range" id="simplify-epsilon" min="0" max="2.0" step="0.1" value="0.3" oninput="$('v-se').textContent=(+this.value).toFixed(1);markSettingsChanged()"/>
+        <div class="field-row"><label>Path quality</label><span class="field-val" id="v-se">Medium</span></div>
+        <div class="field-desc">Smoothing applied to straight-ish line segments. Coarse = fewer points, Super Fine = maximum fidelity.</div>
+        <select id="simplify-epsilon" style="width:100%;padding:7px 10px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--font-ui);font-size:13px;cursor:pointer;" onchange="$('v-se').textContent=this.options[this.selectedIndex].text;markSettingsChanged()">
+          <option value="0.3">Coarse</option>
+          <option value="0.1" selected>Medium</option>
+          <option value="0.03">Fine</option>
+          <option value="0.01">Super Fine</option>
+        </select>
+      </div>
+
+      <div class="field" style="flex-direction:row;align-items:center;justify-content:space-between;gap:12px;">
+        <div>
+          <label style="font-size:15px;font-weight:700;color:var(--text);">Gap filler</label>
+          <div class="field-desc" style="margin-top:4px;">Eliminates white lines between adjacent shapes in browsers and Illustrator.</div>
+        </div>
+        <label style="position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0;">
+          <input type="checkbox" id="gap-fill" checked style="opacity:0;width:0;height:0;" onchange="markSettingsChanged()">
+          <span style="position:absolute;cursor:pointer;inset:0;background:var(--border2);border-radius:22px;transition:.2s;" id="gap-fill-track"></span>
+        </label>
       </div>
     </div>
 
@@ -1286,6 +1320,7 @@ body { padding-top: 52px; }
           <button class="btn-export" id="btn-jpg" onclick="exportAs('jpg')">JPG <span class="pw-lock" id="jpg-lock-icon"></span></button>
         </div>
         <button class="btn-copy-svg" id="btn-copy-svg" onclick="exportAs('copy-svg')">⎘ Copy SVG code <span class="pw-lock" id="copy-lock-icon"></span></button>
+        <button class="btn-outline" onclick="exportAs('stroke-edges')">⬡ Export as outline</button>
         <button class="btn-new" onclick="resetToUpload()">+ Convert a new image</button>
       </div>
 </aside>
@@ -1353,6 +1388,7 @@ body { padding-top: 52px; }
         <button class="m-dl-btn" onclick="exportAs('jpg')">JPG <span class="pw-lock" id="m-jpg-lock"></span></button>
         <button class="m-dl-btn" id="m-copy-btn" onclick="exportAs('copy-svg')">Copy SVG <span class="pw-lock" id="m-copy-lock"></span></button>
       </div>
+      <button class="m-dl-primary" style="background:transparent;color:var(--muted);border:1px solid var(--border);margin-top:6px;" onclick="exportAs('stroke-edges')">⬡ Export as outline</button>
     </div>
   </div>
 
@@ -1544,25 +1580,25 @@ const PRESETS = {
   lineart: {
     gf:4,  ms:3, mc:3,
     mc2:0, cd:0, pb:6,
-    cp:4,  ld:1, fs:4, ct:65, st:80, se:0.4,
+    cp:4,  ld:1, fs:4, ct:65, st:80, se:'0.1',
     mode:'lineart',
   },
   flat: {
     gf:4,  ms:3, mc:1,
     mc2:16, cd:18, pb:3,
-    cp:4,  ld:16, fs:12, ct:60, st:85, se:0.5,
+    cp:4,  ld:16, fs:12, ct:60, st:85, se:'0.3',
     mode:'color',
   },
   illustration: {
     gf:4,  ms:3, mc:1,
     mc2:32, cd:12, pb:6,
-    cp:6,  ld:4,  fs:6, ct:48, st:70, se:0.3,
+    cp:6,  ld:4,  fs:6, ct:48, st:70, se:'0.1',
     mode:'color',
   },
   detailed: {
     gf:3,  ms:1, mc:1,
     mc2:64, cd:8, pb:8,
-    cp:8,  ld:1,  fs:2, ct:30, st:55, se:0.1,
+    cp:8,  ld:1,  fs:2, ct:30, st:55, se:'0.03',
     mode:'color',
   },
 };
@@ -1599,7 +1635,13 @@ function applyPreset(name) {
   setR('filter-speckle',       'v-fs',  p.fs);
   setR('corner-threshold',     'v-ct',  p.ct);
   setR('splice-threshold',     'v-st',  p.st);
-  setR('simplify-epsilon',     'v-se',  p.se,  1);
+  // simplify-epsilon is a <select> — set by value, update label text
+  const seEl = $('simplify-epsilon');
+  if (seEl) {
+    seEl.value = String(p.se);
+    const lbl = $('v-se');
+    if (lbl) lbl.textContent = seEl.options[seEl.selectedIndex]?.text || p.se;
+  }
 
   markSettingsChanged();
 }
@@ -1621,6 +1663,7 @@ function getSettingsSnapshot() {
     ct:  $('corner-threshold').value,
     st:  $('splice-threshold').value,
     se:  $('simplify-epsilon').value,
+    gapfill: $('gap-fill').checked,
     mode: engineMode,
     preset: activePreset,
   });
@@ -2032,8 +2075,17 @@ function load(f) {
       'filter-speckle':6,        'v-fs':'6',
       'corner-threshold':48,     'v-ct':'48',
       'splice-threshold':70,     'v-st':'70',
-      'simplify-epsilon':0.3,    'v-se':'0.3',
     };
+    Object.entries(defs).forEach(([id, val]) => {
+      const el = $(id); if (!el) return;
+      if (el.tagName === 'INPUT') el.value = val;
+      else el.textContent = val;
+    });
+    // Reset select separately
+    const seEl = $('simplify-epsilon');
+    if (seEl) { seEl.value = '0.1'; $('v-se').textContent = 'Medium'; }
+    const gfEl = $('gap-fill');
+    if (gfEl) gfEl.checked = true;
   // Reset checkboxes to defaults
     Object.entries(defs).forEach(([id,val])=>{
       const el=$(id); if(!el) return;
@@ -2138,7 +2190,6 @@ function resetToUpload(){
     'filter-speckle':6,        'v-fs':'6',
     'corner-threshold':48,     'v-ct':'48',
     'splice-threshold':70,     'v-st':'70',
-    'simplify-epsilon':0.3,    'v-se':'0.3',
   };
   Object.entries(defaults).forEach(([id, val]) => {
     const el = $(id);
@@ -2146,6 +2197,10 @@ function resetToUpload(){
     if (el.tagName === 'INPUT') el.value = val;
     else el.textContent = val;
   });
+  const seEl = $('simplify-epsilon');
+  if (seEl) { seEl.value = '0.1'; const lbl=$('v-se'); if(lbl) lbl.textContent='Medium'; }
+  const gfEl = $('gap-fill');
+  if (gfEl) gfEl.checked = true;
 
   // Always force advanced panel closed regardless of current state
   advancedOpen = false;
@@ -2306,6 +2361,7 @@ async function runVectorize(){
   fd.append('corner_threshold',    $('corner-threshold').value);
   fd.append('splice_threshold',    $('splice-threshold').value);
   fd.append('simplify_epsilon',    $('simplify-epsilon').value);
+  fd.append('gap_fill',            $('gap-fill').checked ? '1' : '0');
 
   try{
     currentAbortController = new AbortController();
@@ -2428,6 +2484,37 @@ function svgToCanvas(svgText,tw,th){
 async function _exportAsCore(fmt){
   if(!currentSvgText)return;
   if(fmt==='svg'){const a=document.createElement('a');a.href=currentSvgUrl;a.download='vector.svg';a.click();return;}
+  if(fmt==='stroke-edges'){
+    // Client-side transform: replace fills with strokes, keeping original colours
+    setStatus('Generating outline SVG…','busy');
+    try {
+      let svg = currentSvgText;
+      // Replace fill="#rrggbb" with stroke="#rrggbb" fill="none" on all paths
+      svg = svg.replace(
+        /<path([^>]*)\sfill="#([0-9a-fA-F]{3,6})"([^>]*)\/?>/g,
+        (m, pre, col, post) => {
+          const base = (pre + post).replace(/\s*stroke="[^"]*"/g,'').replace(/\s*stroke-width="[^"]*"/g,'');
+          return `<path${base} fill="none" stroke="#${col}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+        }
+      );
+      // Also handle paths where fill comes after other attrs
+      svg = svg.replace(
+        /<path([^>]*)fill="#([0-9a-fA-F]{3,6})"([^>]*)\/?>/g,
+        (m, pre, col, post) => {
+          const base = (pre + post).replace(/\s*stroke="[^"]*"/g,'').replace(/\s*stroke-width="[^"]*"/g,'');
+          return `<path${base} fill="none" stroke="#${col}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+        }
+      );
+      const blob = new Blob([svg], {type:'image/svg+xml'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'vector-outline.svg';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      setStatus('Outline SVG downloaded','ready');
+    } catch(e) { setStatus('Export failed: '+e.message,'error'); }
+    return;
+  }
   if(fmt==='pdf'){
     if(!currentJobId){ setStatus('No result to export','error'); return; }
     setStatus('Generating PDF…','busy');

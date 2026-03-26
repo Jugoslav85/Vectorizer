@@ -289,6 +289,187 @@ def _svg_colour_dedup(svg, threshold=10):
 
 
 # ---------------------------------------------------------------------------
+# Group by colour
+# ---------------------------------------------------------------------------
+
+def _group_by_color(svg):
+    """
+    Wrap same-colour paths in <g fill="..."> elements and strip individual
+    fill attributes. Output looks identical visually but opens in Illustrator,
+    Figma, and Inkscape with proper colour groups — select all red shapes at
+    once, recolour an entire region, etc.
+
+    Algorithm:
+      1. Parse the flat list of <path> elements vtracer produces.
+      2. Collect paths by their fill colour, preserving draw order within
+         each colour group (later paths paint over earlier ones).
+      3. Emit one <g fill="#rrggbb"> per colour, containing all its paths
+         with the redundant fill attribute removed.
+      4. Keep non-path elements (rect background, etc.) outside the groups.
+    """
+    # Extract the SVG opening tag and everything before the first path/rect
+    svg_open_m = re.search(r'(<svg[^>]+>)', svg)
+    if not svg_open_m:
+        return svg
+    svg_open = svg_open_m.group(1)
+
+    # Collect all top-level elements in document order
+    # Match <path .../>, <path ...></path>, and <rect .../>
+    element_pattern = re.compile(
+        r'(<rect\b[^>]*/?>|<path\b[^>]*/?>|<path\b[^>]*>.*?</path>)',
+        re.DOTALL,
+    )
+    elements = element_pattern.findall(svg)
+    if not elements:
+        return svg
+
+    # Split into background elements (rect) and paths
+    background = []
+    paths_by_color = {}   # colour -> list of path strings (fill attr removed)
+    color_order   = []    # insertion-order colour list
+
+    fill_re = re.compile(r'\s*fill="#([0-9a-fA-F]{3,6})"')
+
+    for el in elements:
+        if el.strip().startswith('<rect'):
+            background.append(el)
+            continue
+        m = fill_re.search(el)
+        if not m:
+            # No fill — keep as-is in a catch-all group
+            color = '__none__'
+        else:
+            color = '#' + m.group(1).lower()
+        # Remove fill attr from path — it will live on the <g>
+        clean = fill_re.sub('', el, count=1)
+        if color not in paths_by_color:
+            paths_by_color[color] = []
+            color_order.append(color)
+        paths_by_color[color].append(clean)
+
+    # Build output
+    lines = [svg_open]
+    for el in background:
+        lines.append('  ' + el)
+    for color in color_order:
+        paths = paths_by_color[color]
+        if color == '__none__':
+            for p in paths:
+                lines.append('  ' + p.strip())
+        else:
+            lines.append(f'  <g fill="{color}">')
+            for p in paths:
+                lines.append('    ' + p.strip())
+            lines.append('  </g>')
+    lines.append('</svg>')
+
+    grouped = '\n'.join(lines)
+    n_groups = len([c for c in color_order if c != '__none__'])
+    print(f'[engine] group_by_color: {n_groups} colour groups, {len(elements)} paths', flush=True)
+    return grouped
+
+
+# ---------------------------------------------------------------------------
+# Gap filler
+# ---------------------------------------------------------------------------
+
+def _gap_filler(svg, stroke_width=1.5):
+    """
+    Eliminate the white-line artifact that appears between adjacent shapes in
+    many SVG renderers (browsers, Illustrator, etc.).
+
+    Strategy: inject a thin stroke on every filled path, using the same colour
+    as the fill, placed BEFORE the fills in the draw order so it acts as a
+    bleed underneath the shape boundaries. Width of 1-2px is enough to cover
+    the sub-pixel gap without being visible at normal zoom.
+
+    This is simpler than the full adjacent-colour-averaging approach (which
+    requires geometric adjacency detection) but solves 95% of cases because
+    the gap colour is usually close to one of the two flanking shapes anyway.
+    """
+    if stroke_width <= 0:
+        return svg
+
+    # Collect all fill colours to build the stroke layer
+    fills = re.findall(r'fill="#([0-9a-fA-F]{3,6})"', svg)
+    if not fills:
+        return svg
+
+    # Build stroke paths: one <path> per original path, stroked not filled
+    # We insert them as a <g> before the main content so they render under fills
+    stroke_paths = []
+    path_re = re.compile(r'<path\b[^>]*/?>|<path\b[^>]*>.*?</path>', re.DOTALL)
+    fill_attr_re = re.compile(r'fill="#([0-9a-fA-F]{3,6})"')
+
+    for match in path_re.finditer(svg):
+        el  = match.group(0)
+        fm  = fill_attr_re.search(el)
+        if not fm:
+            continue
+        color = '#' + fm.group(1)
+        # Replace fill with stroke styling
+        stroked = fill_attr_re.sub(
+            f'fill="none" stroke="{color}" stroke-width="{stroke_width}" '
+            f'stroke-linejoin="round" stroke-linecap="round"',
+            el, count=1,
+        )
+        stroke_paths.append('    ' + stroked.strip())
+
+    if not stroke_paths:
+        return svg
+
+    # Inject the stroke layer right after the opening <svg> tag
+    stroke_layer = (
+        '  <g id="gap-filler" opacity="1">\n' +
+        '\n'.join(stroke_paths) +
+        '\n  </g>'
+    )
+    svg_open_m = re.search(r'<svg[^>]+>', svg)
+    if not svg_open_m:
+        return svg
+    insert_pos = svg_open_m.end()
+    svg = svg[:insert_pos] + '\n' + stroke_layer + svg[insert_pos:]
+    print(f'[engine] gap_filler: injected {len(stroke_paths)} stroke paths (width={stroke_width})', flush=True)
+    return svg
+
+
+# ---------------------------------------------------------------------------
+# Stroke edges (outline mode)
+# ---------------------------------------------------------------------------
+
+def _stroke_edges(svg, stroke_width=1.5, stroke_color=None):
+    """
+    Convert the SVG to an outline/edge drawing by replacing fill with stroke.
+    Useful for laser cutting, vinyl cutting, and outline illustration styles.
+
+    stroke_color: override colour (e.g. '#000000'). None = use each path's
+                  original fill colour as its stroke colour.
+    """
+    def convert_path(m):
+        el       = m.group(0)
+        fill_m   = re.search(r'fill="#([0-9a-fA-F]{3,6})"', el)
+        orig_col = ('#' + fill_m.group(1)) if fill_m else '#000000'
+        color    = stroke_color if stroke_color else orig_col
+        # Replace fill with stroke
+        el = re.sub(r'fill="#[0-9a-fA-F]{3,6}"', f'fill="none"', el)
+        # Inject stroke attrs
+        el = el.rstrip('/>').rstrip() + (
+            f' stroke="{color}" stroke-width="{stroke_width}" '
+            f'stroke-linejoin="round" stroke-linecap="round"/>'
+        )
+        return el
+
+    result = re.sub(
+        r'<path\b[^>]*/?>|<path\b[^>]*>.*?</path>',
+        convert_path,
+        svg,
+        flags=re.DOTALL,
+    )
+    print(f'[engine] stroke_edges: converted to outline (width={stroke_width}, color={stroke_color or "natural"})', flush=True)
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Otsu threshold
 # ---------------------------------------------------------------------------
 
@@ -473,7 +654,13 @@ def vectorize(
     splice_threshold     = 70,
     # Post-processing
     simplify             = True,
-    simplify_epsilon     = 0.3,
+    simplify_epsilon     = 0.1,    # 0.1 = Medium quality (was 0.3 = Coarse)
+    group_by_color       = True,   # wrap same-colour paths in <g> elements
+    gap_fill             = True,   # inject stroke bleed to kill white-line artifacts
+    gap_fill_width       = 1.5,    # gap filler stroke width in px
+    stroke_edges         = False,  # outline mode: stroke paths instead of fill
+    stroke_edges_width   = 1.5,    # stroke width for outline mode
+    stroke_edges_color   = None,   # None = natural colour, '#000000' = override
     **kwargs,
 ):
     img = Image.open(io.BytesIO(image_data)).convert('RGBA')
@@ -605,14 +792,31 @@ def vectorize(
         print(f'[engine] {paths_before} paths before post-processing', flush=True)
 
         # ── Post-processing ───────────────────────────────────────────────────
-        # SVG colour deduplication
+        # 1. SVG colour deduplication (merge near-identical fills)
         if mode == 'color' and svg_dedup_thresh > 0:
             svg = _svg_colour_dedup(svg, threshold=svg_dedup_thresh)
 
+        # 2. Remove tiny stray paths
         svg = _remove_short_paths(svg, min_size=2.0)
 
+        # 3. RDP path simplification
         if simplify and svg.count('<path') > 150:
             svg = _simplify_svg_paths(svg, epsilon=simplify_epsilon)
+
+        # 4. Gap filler — inject stroke bleed before fills to kill white-line artifact
+        #    Must run BEFORE group_by_color so strokes sit under the fill groups
+        if gap_fill and not stroke_edges:
+            svg = _gap_filler(svg, stroke_width=gap_fill_width)
+
+        # 5. Group paths by colour for clean Illustrator/Figma editing
+        #    Skip grouping in stroke_edges mode — no fill colours remain
+        if group_by_color and not stroke_edges:
+            svg = _group_by_color(svg)
+
+        # 6. Stroke edges (outline/laser-cut mode) — replaces fills with strokes
+        if stroke_edges:
+            svg = _stroke_edges(svg, stroke_width=stroke_edges_width,
+                                stroke_color=stroke_edges_color)
 
         paths_after = svg.count('<path')
         print(

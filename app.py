@@ -542,13 +542,19 @@ def api_vectorize():
         "filter_speckle":       gi("filter_speckle",        6),
         "engine_mode":          request.form.get("engine_mode", "auto"),
         "posterize_bits":       gi("posterize_bits",        6),
-        "simplify_epsilon":     gf("simplify_epsilon",      0.3),
+        "simplify_epsilon":     gf("simplify_epsilon",      0.1),
         "corner_threshold":     gi("corner_threshold",      48),
         "splice_threshold":     gi("splice_threshold",      70),
         "max_colors":           gi("max_colors",            32),
         "guided_filter_radius": gi("guided_filter_radius",  4),
         "color_dedup_thresh":   gi("color_dedup_thresh",    12),
         "svg_dedup_thresh":     gi("svg_dedup_thresh",      10),
+        # Post-processing options
+        "gap_fill":             request.form.get("gap_fill", "1") == "1",
+        "gap_fill_width":       gf("gap_fill_width",        1.5),
+        "stroke_edges":         request.form.get("stroke_edges", "0") == "1",
+        "stroke_edges_width":   gf("stroke_edges_width",    1.5),
+        "stroke_edges_color":   request.form.get("stroke_edges_color", "") or None,
     }
 
     session_id = _get_session_id(request)
@@ -592,6 +598,11 @@ def api_vectorize():
             guided_filter_radius = settings["guided_filter_radius"],
             color_dedup_thresh   = settings["color_dedup_thresh"],
             svg_dedup_thresh     = settings["svg_dedup_thresh"],
+            gap_fill             = settings["gap_fill"],
+            gap_fill_width       = settings["gap_fill_width"],
+            stroke_edges         = settings["stroke_edges"],
+            stroke_edges_width   = settings["stroke_edges_width"],
+            stroke_edges_color   = settings["stroke_edges_color"],
         )
     except Exception as e:
         traceback.print_exc()
