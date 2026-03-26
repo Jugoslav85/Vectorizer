@@ -535,26 +535,15 @@ def api_vectorize():
         except: return d
 
     settings = {
-        "median_size":          gi("median_size",           3),
-        "morph_close_size":     gi("morph_close_size",      3),
-        "color_precision":      gi("color_precision",       6),
-        "layer_difference":     gi("layer_difference",      4),
-        "filter_speckle":       gi("filter_speckle",        6),
-        "engine_mode":          request.form.get("engine_mode", "auto"),
-        "posterize_bits":       gi("posterize_bits",        6),
-        "simplify_epsilon":     gf("simplify_epsilon",      0.1),
-        "corner_threshold":     gi("corner_threshold",      48),
-        "splice_threshold":     gi("splice_threshold",      70),
-        "max_colors":           gi("max_colors",            32),
-        "guided_filter_radius": gi("guided_filter_radius",  4),
-        "color_dedup_thresh":   gi("color_dedup_thresh",    12),
-        "svg_dedup_thresh":     gi("svg_dedup_thresh",      10),
-        # Post-processing options
-        "gap_fill":             request.form.get("gap_fill", "1") == "1",
-        "gap_fill_width":       gf("gap_fill_width",        1.5),
-        "stroke_edges":         request.form.get("stroke_edges", "0") == "1",
-        "stroke_edges_width":   gf("stroke_edges_width",    1.5),
-        "stroke_edges_color":   request.form.get("stroke_edges_color", "") or None,
+        "median_size":        gi("median_size",        3),
+        "morph_close_size":   gi("morph_close_size",   3),
+        "posterize_bits":     gi("posterize_bits",      6),
+        "color_precision":    gi("color_precision",     6),
+        "filter_speckle":     gi("filter_speckle",      6),
+        "corner_threshold":   gi("corner_threshold",   48),
+        "simplify_epsilon":   gf("simplify_epsilon",   0.1),
+        "engine_mode":        request.form.get("engine_mode", "auto"),
+        "gap_fill":           request.form.get("gap_fill", "1") == "1",
     }
 
     session_id = _get_session_id(request)
@@ -583,26 +572,15 @@ def api_vectorize():
     try:
         svg = vectorize(
             raw,
-            median_size          = settings["median_size"],
-            morph_close_size     = settings["morph_close_size"],
-            posterize_bits       = settings["posterize_bits"],
-            engine_mode          = settings["engine_mode"],
-            simplify             = True,
-            simplify_epsilon     = settings["simplify_epsilon"],
-            filter_speckle       = settings["filter_speckle"],
-            color_precision      = settings["color_precision"],
-            layer_difference     = settings["layer_difference"],
-            corner_threshold     = settings["corner_threshold"],
-            splice_threshold     = settings["splice_threshold"],
-            max_colors           = settings["max_colors"],
-            guided_filter_radius = settings["guided_filter_radius"],
-            color_dedup_thresh   = settings["color_dedup_thresh"],
-            svg_dedup_thresh     = settings["svg_dedup_thresh"],
-            gap_fill             = settings["gap_fill"],
-            gap_fill_width       = settings["gap_fill_width"],
-            stroke_edges         = settings["stroke_edges"],
-            stroke_edges_width   = settings["stroke_edges_width"],
-            stroke_edges_color   = settings["stroke_edges_color"],
+            engine_mode      = settings["engine_mode"],
+            median_size      = settings["median_size"],
+            morph_close_size = settings["morph_close_size"],
+            posterize_bits   = settings["posterize_bits"],
+            color_precision  = settings["color_precision"],
+            filter_speckle   = settings["filter_speckle"],
+            corner_threshold = settings["corner_threshold"],
+            simplify_epsilon = settings["simplify_epsilon"],
+            gap_fill         = settings["gap_fill"],
         )
     except Exception as e:
         traceback.print_exc()
