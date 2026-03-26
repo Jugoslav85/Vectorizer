@@ -250,14 +250,17 @@ input[type=range]{width:100%;accent-color:var(--accent);height:6px;cursor:pointe
 .btn-outline:hover{color:var(--text);border-color:var(--border2);}
 
 /* ── Toggle switch ── */
-#gap-fill-track{background:var(--border2);}
-#gap-fill:checked + #gap-fill-track{background:var(--accent);}
-#gap-fill-track::after{
+.toggle-track{
+  position:absolute;cursor:pointer;inset:0;
+  background:var(--border2);border-radius:22px;transition:.2s;
+}
+.toggle-track::after{
   content:'';position:absolute;left:3px;top:3px;
   width:16px;height:16px;border-radius:50%;
   background:#fff;transition:.2s;
 }
-#gap-fill:checked + #gap-fill-track::after{transform:translateX(18px);}
+input[type=checkbox]:checked + .toggle-track{background:var(--accent);}
+input[type=checkbox]:checked + .toggle-track::after{transform:translateX(18px);}
 
 /* ── Main area ── */
 main{
@@ -1195,7 +1198,83 @@ body { padding-top: 52px; }
     </button>
     <div class="advanced-panel" id="advanced-panel">
       <div class="advanced-hint">
-        <strong>Tip —</strong> Pick a style above first, then adjust these to fine-tune your result.
+        <strong>Tip —</strong> Pick a style above first, then adjust to fine-tune. Toggle individual enhancements to compare.
+      </div>
+
+      <div class="sec-label" style="margin-top:8px;">Pre-processing</div>
+
+      <div class="field" style="flex-direction:row;align-items:center;justify-content:space-between;gap:12px;">
+        <div>
+          <label style="font-size:14px;font-weight:700;color:var(--text);">Unsharp Mask</label>
+          <div class="field-desc" style="margin-top:3px;">Sharpens fine detail — eyes, thin lines — before tracing. Computes edges internally, never blurs output.</div>
+        </div>
+        <label style="position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0;">
+          <input type="checkbox" id="unsharp-mask" checked style="opacity:0;width:0;height:0;" onchange="markSettingsChanged()">
+          <span class="toggle-track" id="unsharp-mask-track"></span>
+        </label>
+      </div>
+
+      <div class="field">
+        <div class="field-row"><label>USM Radius</label><span class="field-val" id="v-usmr">1.5</span></div>
+        <div class="field-desc">Detail frequency targeted. 1–2px targets fine detail, 3px+ targets broader edges.</div>
+        <input type="range" id="unsharp-radius" min="0.5" max="4.0" step="0.5" value="1.5" oninput="$('v-usmr').textContent=(+this.value).toFixed(1);markSettingsChanged()"/>
+      </div>
+
+      <div class="field">
+        <div class="field-row"><label>USM Strength</label><span class="field-val" id="v-usmp">180</span></div>
+        <div class="field-desc">Sharpening intensity. Higher = more aggressive detail recovery.</div>
+        <input type="range" id="unsharp-percent" min="50" max="300" step="10" value="180" oninput="$('v-usmp').textContent=this.value;markSettingsChanged()"/>
+      </div>
+
+      <div class="field" style="flex-direction:row;align-items:center;justify-content:space-between;gap:12px;">
+        <div>
+          <label style="font-size:14px;font-weight:700;color:var(--text);">CLAHE</label>
+          <div class="field-desc" style="margin-top:3px;">Local contrast enhancement. Lifts shadow detail (dark eyes, dark lines) independently in each image tile.</div>
+        </div>
+        <label style="position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0;">
+          <input type="checkbox" id="clahe" checked style="opacity:0;width:0;height:0;" onchange="markSettingsChanged()">
+          <span class="toggle-track" id="clahe-track"></span>
+        </label>
+      </div>
+
+      <div class="field">
+        <div class="field-row"><label>CLAHE Clip</label><span class="field-val" id="v-clahec">2.0</span></div>
+        <div class="field-desc">Max contrast amplification per tile. Higher = stronger lift, may introduce noise.</div>
+        <input type="range" id="clahe-clip" min="1.0" max="8.0" step="0.5" value="2.0" oninput="$('v-clahec').textContent=(+this.value).toFixed(1);markSettingsChanged()"/>
+      </div>
+
+      <div class="field" style="flex-direction:row;align-items:center;justify-content:space-between;gap:12px;">
+        <div>
+          <label style="font-size:14px;font-weight:700;color:var(--text);">Edge Contrast</label>
+          <div class="field-desc" style="margin-top:3px;">Boosts contrast only near detected edges. Pushes colour boundaries apart so vtracer sees a clear divide.</div>
+        </div>
+        <label style="position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0;">
+          <input type="checkbox" id="edge-contrast" checked style="opacity:0;width:0;height:0;" onchange="markSettingsChanged()">
+          <span class="toggle-track" id="edge-contrast-track"></span>
+        </label>
+      </div>
+
+      <div class="field">
+        <div class="field-row"><label>Edge Boost</label><span class="field-val" id="v-edgeco">1.8</span></div>
+        <div class="field-desc">Contrast multiplier applied near edges. 1.0 = no change, 3.0 = very strong.</div>
+        <input type="range" id="edge-contrast-boost" min="1.0" max="3.0" step="0.1" value="1.8" oninput="$('v-edgeco').textContent=(+this.value).toFixed(1);markSettingsChanged()"/>
+      </div>
+
+      <div class="field" style="flex-direction:row;align-items:center;justify-content:space-between;gap:12px;">
+        <div>
+          <label style="font-size:14px;font-weight:700;color:var(--text);">Tonal Separation</label>
+          <div class="field-desc" style="margin-top:3px;">Stretches the shadow tonal range. Helps recover dark detail on dark backgrounds. Off by default.</div>
+        </div>
+        <label style="position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0;">
+          <input type="checkbox" id="tonal-separation"  style="opacity:0;width:0;height:0;" onchange="markSettingsChanged()">
+          <span class="toggle-track" id="tonal-separation-track"></span>
+        </label>
+      </div>
+
+      <div class="field">
+        <div class="field-row"><label>Shadow Range</label><span class="field-val" id="v-tonals">80</span></div>
+        <div class="field-desc">Input values below this get stretched. Raise to recover more shadow detail.</div>
+        <input type="range" id="tonal-shadow-end" min="20" max="150" step="5" value="80" oninput="$('v-tonals').textContent=this.value;markSettingsChanged()"/>
       </div>
 
       <div class="field">
@@ -1214,42 +1293,64 @@ body { padding-top: 52px; }
       <div class="sec-label" style="margin-top:16px;">vtracer</div>
 
       <div class="field">
-        <div class="field-row"><label>Filter Speckle</label><span class="field-val" id="v-fs">4</span></div>
-        <div class="field-desc">Discard paths smaller than this many pixels. Higher = cleaner but loses fine detail.</div>
-        <input type="range" id="filter-speckle" min="1" max="32" value="4" oninput="$('v-fs').textContent=this.value;markSettingsChanged()"/>
+        <div class="field-row"><label>Filter Speckle</label><span class="field-val" id="v-filter">4</span></div>
+        <div class="field-desc">Discard paths smaller than this many pixels. Lower = keep more detail.</div>
+        <input type="range" id="filter-speckle" min="1" max="32" step="1" value="4" oninput="$('v-filter').textContent=this.value;markSettingsChanged()"/>
       </div>
 
       <div class="field">
-        <div class="field-row"><label>Color Precision</label><span class="field-val" id="v-cp">6</span></div>
+        <div class="field-row"><label>Color Precision</label><span class="field-val" id="v-colorp">6</span></div>
         <div class="field-desc">Palette matching precision. Higher = more accurate colours, more paths.</div>
-        <input type="range" id="color-precision" min="1" max="8" value="6" oninput="$('v-cp').textContent=this.value;markSettingsChanged()"/>
+        <input type="range" id="color-precision" min="1" max="8" step="1" value="6" oninput="$('v-colorp').textContent=this.value;markSettingsChanged()"/>
       </div>
 
       <div class="field">
-        <div class="field-row"><label>Layer Difference</label><span class="field-val" id="v-ld">16</span></div>
-        <div class="field-desc">Minimum colour difference to create a separate layer. Higher = fewer layers, faster.</div>
-        <input type="range" id="layer-difference" min="1" max="64" value="16" oninput="$('v-ld').textContent=this.value;markSettingsChanged()"/>
+        <div class="field-row"><label>Layer Difference</label><span class="field-val" id="v-layerd">16</span></div>
+        <div class="field-desc">Min colour difference for a separate layer. Lower = more layers, more detail.</div>
+        <input type="range" id="layer-difference" min="1" max="64" step="1" value="16" oninput="$('v-layerd').textContent=this.value;markSettingsChanged()"/>
       </div>
 
       <div class="field">
-        <div class="field-row"><label>Corner Threshold</label><span class="field-val" id="v-ct">60</span></div>
-        <div class="field-desc">Angle below which a point is considered a corner. Higher = smoother curves.</div>
-        <input type="range" id="corner-threshold" min="1" max="180" value="60" oninput="$('v-ct').textContent=this.value;markSettingsChanged()"/>
+        <div class="field-row"><label>Corner Threshold</label><span class="field-val" id="v-corner">60</span></div>
+        <div class="field-desc">Angle below which a point is a corner. Higher = smoother curves.</div>
+        <input type="range" id="corner-threshold" min="1" max="180" step="1" value="60" oninput="$('v-corner').textContent=this.value;markSettingsChanged()"/>
       </div>
 
       <div class="field">
-        <div class="field-row"><label>Length Threshold</label><span class="field-val" id="v-lt">4.0</span></div>
-        <div class="field-desc">Minimum path segment length. Higher = smoother, fewer points.</div>
-        <input type="range" id="length-threshold" min="0.5" max="10.0" step="0.5" value="4.0" oninput="$('v-lt').textContent=(+this.value).toFixed(1);markSettingsChanged()"/>
+        <div class="field-row"><label>Length Threshold</label><span class="field-val" id="v-length">4.0</span></div>
+        <div class="field-desc">Minimum path segment length in px. Higher = smoother, fewer points.</div>
+        <input type="range" id="length-threshold" min="0.5" max="10.0" step="0.5" value="4.0" oninput="$('v-length').textContent=(+this.value).toFixed(1);markSettingsChanged()"/>
       </div>
 
       <div class="field">
-        <div class="field-row"><label>Splice Threshold</label><span class="field-val" id="v-st">45</span></div>
+        <div class="field-row"><label>Splice Threshold</label><span class="field-val" id="v-splice">45</span></div>
         <div class="field-desc">Angle below which curves are joined. Higher = longer, smoother splines.</div>
-        <input type="range" id="splice-threshold" min="1" max="180" value="45" oninput="$('v-st').textContent=this.value;markSettingsChanged()"/>
+        <input type="range" id="splice-threshold" min="1" max="180" step="1" value="45" oninput="$('v-splice').textContent=this.value;markSettingsChanged()"/>
       </div>
 
       <div class="sec-label" style="margin-top:16px;">Post-processing</div>
+
+      <div class="field" style="flex-direction:row;align-items:center;justify-content:space-between;gap:12px;">
+        <div>
+          <label style="font-size:14px;font-weight:700;color:var(--text);">Smart Path Retention</label>
+          <div class="field-desc" style="margin-top:3px;">Keeps small paths near same-colour neighbours (detail clusters). Removes only truly isolated tiny paths.</div>
+        </div>
+        <label style="position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0;">
+          <input type="checkbox" id="smart-path-retention" checked style="opacity:0;width:0;height:0;" onchange="markSettingsChanged()">
+          <span class="toggle-track" id="smart-path-retention-track"></span>
+        </label>
+      </div>
+
+      <div class="field" style="flex-direction:row;align-items:center;justify-content:space-between;gap:12px;">
+        <div>
+          <label style="font-size:14px;font-weight:700;color:var(--text);">Thin Path Stroke</label>
+          <div class="field-desc" style="margin-top:3px;">Adds a hairline stroke to very thin surviving paths so they stay visible at all zoom levels.</div>
+        </div>
+        <label style="position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0;">
+          <input type="checkbox" id="thin-path-stroke" checked style="opacity:0;width:0;height:0;" onchange="markSettingsChanged()">
+          <span class="toggle-track" id="thin-path-stroke-track"></span>
+        </label>
+      </div>
 
       <div class="field">
         <div class="field-row"><label>Path Quality</label><span class="field-val" id="v-se">Medium</span></div>
@@ -1264,15 +1365,16 @@ body { padding-top: 52px; }
 
       <div class="field" style="flex-direction:row;align-items:center;justify-content:space-between;gap:12px;">
         <div>
-          <label style="font-size:15px;font-weight:700;color:var(--text);">Gap Filler</label>
-          <div class="field-desc" style="margin-top:4px;">Eliminates white lines between adjacent shapes in browsers and Illustrator.</div>
+          <label style="font-size:14px;font-weight:700;color:var(--text);">Gap Filler</label>
+          <div class="field-desc" style="margin-top:3px;">Eliminates white lines between adjacent shapes in browsers and Illustrator.</div>
         </div>
         <label style="position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0;">
           <input type="checkbox" id="gap-fill" checked style="opacity:0;width:0;height:0;" onchange="markSettingsChanged()">
-          <span style="position:absolute;cursor:pointer;inset:0;background:var(--border2);border-radius:22px;transition:.2s;" id="gap-fill-track"></span>
+          <span class="toggle-track" id="gap-fill-track"></span>
         </label>
       </div>
     </div>
+
 
 
 
@@ -1558,7 +1660,6 @@ function toggleAdvanced() {
 //   cp=color-precision, ld=layer-diff, fs=filter-speckle,
 //   ct=corner-threshold, st=splice-threshold, se=simplify-epsilon, mode
 const PRESETS = {
-  // All values are vtracer defaults unless intentionally changed per style
   lineart: {
     colormode:'bw',
     pb:'0', fs:4, cp:6, ld:16, ct:60, lt:'4.0', st:45, se:'0.1',
@@ -1573,7 +1674,7 @@ const PRESETS = {
   },
   detailed: {
     colormode:'color',
-    pb:'0', fs:2, cp:8, ld:8,  ct:45, lt:'3.0', st:30, se:'0.03',
+    pb:'0', fs:2, cp:8, ld:8, ct:45, lt:'3.0', st:30, se:'0.03',
   },
 };
 
@@ -1598,14 +1699,13 @@ function applyPreset(name) {
     const lb = $(lbl); if (lb) lb.textContent = dec ? (+val).toFixed(dec) : val;
   };
 
-  setR('filter-speckle',   'v-fs', p.fs);
-  setR('color-precision',  'v-cp', p.cp);
-  setR('layer-difference', 'v-ld', p.ld);
-  setR('corner-threshold', 'v-ct', p.ct);
-  setR('length-threshold', 'v-lt', p.lt, 1);
-  setR('splice-threshold', 'v-st', p.st);
+  setR('filter-speckle',   'v-filter', p.fs);
+  setR('color-precision',  'v-colorp', p.cp);
+  setR('layer-difference', 'v-layerd', p.ld);
+  setR('corner-threshold', 'v-corner', p.ct);
+  setR('length-threshold', 'v-length', p.lt, 1);
+  setR('splice-threshold', 'v-splice', p.st);
 
-  // Selects
   const pbEl = $('posterize-bits');
   if (pbEl) { pbEl.value = String(p.pb); $('v-pb').textContent = pbEl.options[pbEl.selectedIndex]?.text || p.pb; }
   const seEl = $('simplify-epsilon');
@@ -1617,17 +1717,20 @@ function applyPreset(name) {
 let settingsSnapshot = null;
 let hasResult = false;
 function getSettingsSnapshot() {
+  const chk = id => $(id)?.checked;
+  const val = id => $(id)?.value || '';
   return JSON.stringify({
     colormode: engineMode,
-    pb: $('posterize-bits').value,
-    fs: $('filter-speckle').value,
-    cp: $('color-precision').value,
-    ld: $('layer-difference').value,
-    ct: $('corner-threshold').value,
-    lt: $('length-threshold').value,
-    st: $('splice-threshold').value,
-    se: $('simplify-epsilon').value,
-    gapfill: $('gap-fill').checked,
+    um: chk('unsharp-mask'), ur: val('unsharp-radius'), up: val('unsharp-percent'),
+    cl: chk('clahe'), cc: val('clahe-clip'),
+    ec: chk('edge-contrast'), eb: val('edge-contrast-boost'),
+    ts: chk('tonal-separation'), te: val('tonal-shadow-end'),
+    pb: val('posterize-bits'),
+    fs: val('filter-speckle'), cp: val('color-precision'),
+    ld: val('layer-difference'), ct: val('corner-threshold'),
+    lt: val('length-threshold'), st: val('splice-threshold'),
+    sp: chk('smart-path-retention'), tps: chk('thin-path-stroke'),
+    se: val('simplify-epsilon'), gf: chk('gap-fill'),
     preset: activePreset,
   });
 }
@@ -2302,17 +2405,34 @@ async function runVectorize(){
   setTimeout(()=>advanceLB(2),2300);
 
   const fd=new FormData();
-  fd.append('file',             currentFile);
-  fd.append('colormode',        engineMode);
-  fd.append('posterize_bits',   $('posterize-bits').value);
-  fd.append('filter_speckle',   $('filter-speckle').value);
-  fd.append('color_precision',  $('color-precision').value);
-  fd.append('layer_difference', $('layer-difference').value);
-  fd.append('corner_threshold', $('corner-threshold').value);
-  fd.append('length_threshold', $('length-threshold').value);
-  fd.append('splice_threshold', $('splice-threshold').value);
-  fd.append('simplify_epsilon', $('simplify-epsilon').value);
-  fd.append('gap_fill',         $('gap-fill').checked ? '1' : '0');
+  const _chk = id => ($(id)?.checked ? '1' : '0');
+  fd.append('file',                  currentFile);
+  fd.append('colormode',             engineMode);
+  fd.append('unsharp_mask',          _chk('unsharp-mask'));
+  fd.append('unsharp_radius',        $('unsharp-radius').value);
+  fd.append('unsharp_percent',       $('unsharp-percent').value);
+  fd.append('clahe',                 _chk('clahe'));
+  fd.append('clahe_clip',            $('clahe-clip').value);
+  fd.append('clahe_tile',            '8');
+  fd.append('edge_contrast',         _chk('edge-contrast'));
+  fd.append('edge_contrast_boost',   $('edge-contrast-boost').value);
+  fd.append('tonal_separation',      _chk('tonal-separation'));
+  fd.append('tonal_shadow_end',      $('tonal-shadow-end').value);
+  fd.append('tonal_shadow_out',      '160');
+  fd.append('posterize_bits',        $('posterize-bits').value);
+  fd.append('filter_speckle',        $('filter-speckle').value);
+  fd.append('color_precision',       $('color-precision').value);
+  fd.append('layer_difference',      $('layer-difference').value);
+  fd.append('corner_threshold',      $('corner-threshold').value);
+  fd.append('length_threshold',      $('length-threshold').value);
+  fd.append('splice_threshold',      $('splice-threshold').value);
+  fd.append('smart_path_retention',  _chk('smart-path-retention'));
+  fd.append('smart_proximity',       '8.0');
+  fd.append('simplify_epsilon',      $('simplify-epsilon').value);
+  fd.append('thin_path_stroke',      _chk('thin-path-stroke'));
+  fd.append('thin_path_max_size',    '6.0');
+  fd.append('thin_stroke_width',     '0.5');
+  fd.append('gap_fill',              _chk('gap-fill'));
 
   try{
     currentAbortController = new AbortController();
