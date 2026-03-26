@@ -2329,9 +2329,12 @@ async function runVectorize(){
     $('btn-cancel').style.display = 'none';
   }
   const dummy = null; // placeholder
-    const data=await res.json();
+    // Safe parse — Railway/proxy can return plain-text errors (503, 502, etc.)
+    let data;
+    try { data = await res.json(); }
+    catch(_) { throw new Error(`Server error (${res.status}) — please try again in a moment.`); }
     if(res.status === 429) throw new Error('Server is busy — please wait a moment and try again.');
-    if(!res.ok)throw new Error(data.error);
+    if(!res.ok) throw new Error(data?.error || `Server error (${res.status})`);
     currentJobId=data.job_id;
     currentSvgUrl=data.download;
     currentSvgText=data.svg;
