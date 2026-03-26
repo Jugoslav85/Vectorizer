@@ -535,15 +535,16 @@ def api_vectorize():
         except: return d
 
     settings = {
-        "median_size":        gi("median_size",        3),
-        "morph_close_size":   gi("morph_close_size",   3),
-        "posterize_bits":     gi("posterize_bits",      6),
-        "color_precision":    gi("color_precision",     6),
-        "filter_speckle":     gi("filter_speckle",      6),
-        "corner_threshold":   gi("corner_threshold",   48),
-        "simplify_epsilon":   gf("simplify_epsilon",   0.1),
-        "engine_mode":        request.form.get("engine_mode", "auto"),
-        "gap_fill":           request.form.get("gap_fill", "1") == "1",
+        "colormode":        request.form.get("colormode", "color"),
+        "posterize_bits":   gi("posterize_bits",    0),
+        "filter_speckle":   gi("filter_speckle",    4),
+        "color_precision":  gi("color_precision",   6),
+        "layer_difference": gi("layer_difference",  16),
+        "corner_threshold": gi("corner_threshold",  60),
+        "length_threshold": gf("length_threshold",  4.0),
+        "splice_threshold": gi("splice_threshold",  45),
+        "simplify_epsilon": gf("simplify_epsilon",  0.1),
+        "gap_fill":         request.form.get("gap_fill", "1") == "1",
     }
 
     session_id = _get_session_id(request)
@@ -572,13 +573,14 @@ def api_vectorize():
     try:
         svg = vectorize(
             raw,
-            engine_mode      = settings["engine_mode"],
-            median_size      = settings["median_size"],
-            morph_close_size = settings["morph_close_size"],
+            colormode        = settings["colormode"],
             posterize_bits   = settings["posterize_bits"],
-            color_precision  = settings["color_precision"],
             filter_speckle   = settings["filter_speckle"],
+            color_precision  = settings["color_precision"],
+            layer_difference = settings["layer_difference"],
             corner_threshold = settings["corner_threshold"],
+            length_threshold = settings["length_threshold"],
+            splice_threshold = settings["splice_threshold"],
             simplify_epsilon = settings["simplify_epsilon"],
             gap_fill         = settings["gap_fill"],
         )
